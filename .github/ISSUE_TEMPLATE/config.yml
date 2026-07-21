@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Team Discussion
+    url: https://github.com/orgs/REPLACE_ORG/discussions
+    about: For open-ended questions, don't open an issue — start a Discussion instead.

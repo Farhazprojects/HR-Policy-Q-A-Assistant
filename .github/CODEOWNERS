@@ -1,0 +1,11 @@
+# Default: Farhaz reviews all code changes (Technical Lead)
+/src/                    @farhaz-khondoker
+/deployment/              @farhaz-khondoker
+
+# Documentation ownership reflects assigned responsibilities
+/docs/assessment-1/       @isuru-koswaththa
+/docs/architecture/        @dineli-gampolage
+/docs/requirements/         @dineli-gampolage
+/docs/testing/                @dineli-gampolage
+/docs/user-manual/            @dineli-gampolage
+/docs/meeting-minutes/         @isuru-koswaththa

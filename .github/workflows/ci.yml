@@ -1,0 +1,15 @@
+# Placeholder CI pipeline — activated once src/backend and src/frontend have code to test.
+# Kept here now so the Actions tab and workflow structure exist from day one.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  placeholder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: No build steps yet
+        run: echo "CI will run lint/test once backend and frontend scaffolding lands (see ROADMAP.md Phase 2)."

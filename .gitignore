@@ -1,0 +1,54 @@
+# --- Python (backend / AI) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*.log
+
+# --- Node / React (frontend) ---
+node_modules/
+dist/
+build/
+.next/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# --- Database ---
+*.sqlite3
+*.db
+/pgdata/
+
+# --- Vector store / embeddings cache ---
+/src/ai/vector-store/local-index/
+*.faiss
+*.index
+
+# --- Secrets & credentials ---
+*.pem
+*.key
+credentials.json
+secrets.yaml
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+*.env.docker
+
+# --- Test & coverage ---
+coverage/
+.coverage
+htmlcov/
+.pytest_cache/
+
+# --- Docs build artefacts ---
+docs/_build/
