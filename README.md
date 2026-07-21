@@ -1,10 +1,6 @@
 # HR Policy Q&A Assistant
 ### Enterprise Knowledge Management System (AI-Powered)
 
-[![Status](https://img.shields.io/badge/status-in--development-yellow)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
-[![Unit](https://img.shields.io/badge/CQU-COIT20254-002B5C)]()
-
 > A capstone project for **COIT20254 – Information Systems Project**, CQUniversity Australia.
 
 ---
