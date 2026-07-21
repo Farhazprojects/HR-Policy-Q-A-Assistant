@@ -39,13 +39,11 @@ Full diagrams: [`docs/architecture/system-architecture.md`](docs/architecture/sy
 hr-policy-qa-assistant/
 ├── .github/              GitHub configuration — issue/PR templates, CI workflows, CODEOWNERS
 ├── docs/                 All non-code deliverables (see docs/README below)
-│   ├── assessment-1/     Every Assessment 1 deliverable, one file each
 │   ├── architecture/     System architecture, UML, BPMN, data flow diagrams
-│   ├── requirements/     User stories, functional/non-functional requirements
 │   ├── testing/          Test cases and UAT scripts
-│   ├── user-manual/      End-user documentation
 │   ├── meeting-minutes/  Weekly team meeting records
 │   └── presentations/    Slide decks and speaking scripts
+│   └── requirements/     User Stories
 ├── src/
 │   ├── ai/                        AI/RAG layer (see src/ai/README.md)
 │   │   ├── rag/                   Retrieval-augmented generation pipeline
