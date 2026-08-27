@@ -43,7 +43,8 @@ Implementation: `src/backend/services/ragService.ts`.
 2. **Deduplicate** — SHA-256 of the file bytes. An identical file is rejected
    rather than re-embedded, and a duplicate `(title, version)` is rejected. This
    is the "do not regenerate embeddings for unchanged documents" cost control.
-3. **Extract** — `pdfjs-dist` reads the document **page by page**, so every chunk
+3. **Extract** — `pdfjs-dist` (pinned to 3.x for its CommonJS build) reads the
+   document **page by page**, so every chunk
    carries a real page number. Line structure is rebuilt from the `hasEOL` flag,
    which is what allows headings to survive extraction.
 4. **Chunk** — page-aware, section-attributed (below).

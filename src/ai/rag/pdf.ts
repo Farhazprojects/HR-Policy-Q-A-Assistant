@@ -12,36 +12,23 @@ export interface ExtractionResult {
 }
 
 /**
- * pdfjs-dist ships as ESM only. `new Function` keeps this a genuine dynamic
- * import so it survives both TypeScript's CommonJS output and the tsx dev
- * loader — a plain `await import()` is rewritten to `require()` by tsc, which
- * cannot load an .mjs module.
+ * pdfjs-dist is pinned to the 3.x line because it ships a genuine CommonJS
+ * build. The 4.x line is ESM-only, which forced a `new Function('return
+ * import(s)')` escape hatch to survive TypeScript's CommonJS output — and that
+ * hatch throws ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING under Vitest's module
+ * runner on Node 20. A static import of the CJS build needs no escape hatch and
+ * behaves identically under tsx, Vitest and plain Node.
+ *
+ * The package entry point is used rather than `legacy/`, which tries to polyfill
+ * DOMMatrix and Path2D from the optional native `canvas` package and prints two
+ * warnings per process when it is absent. Text extraction never rasterises, so
+ * the polyfills are not needed.
  */
-const dynamicImport = new Function('specifier', 'return import(specifier)') as (
-  s: string,
-) => Promise<Record<string, unknown>>;
+import * as pdfjs from 'pdfjs-dist';
 
-type PdfJsModule = {
-  getDocument: (opts: Record<string, unknown>) => {
-    promise: Promise<{
-      numPages: number;
-      getPage: (n: number) => Promise<{
-        getTextContent: () => Promise<{ items: { str?: string; hasEOL?: boolean }[] }>;
-      }>;
-      destroy: () => Promise<void>;
-    }>;
-  };
-};
-
-let pdfjsPromise: Promise<PdfJsModule> | null = null;
-
-async function loadPdfjs(): Promise<PdfJsModule> {
-  if (!pdfjsPromise) {
-    pdfjsPromise = dynamicImport('pdfjs-dist/legacy/build/pdf.mjs').then(
-      (m) => (m.default ?? m) as unknown as PdfJsModule,
-    );
-  }
-  return pdfjsPromise;
+interface TextItem {
+  str?: string;
+  hasEOL?: boolean;
 }
 
 /**
@@ -54,9 +41,8 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
     throw BadRequest('That file is not a valid PDF. Please upload a PDF policy document.');
   }
 
-  const pdfjs = await loadPdfjs();
   const pages: ExtractedPage[] = [];
-  let document: Awaited<ReturnType<PdfJsModule['getDocument']>['promise']> | null = null;
+  let document: Awaited<ReturnType<typeof pdfjs.getDocument>['promise']> | null = null;
 
   try {
     document = await pdfjs.getDocument({
@@ -74,7 +60,7 @@ export async function extractPdf(buffer: Buffer): Promise<ExtractionResult> {
 
       // hasEOL marks genuine line ends, which is what preserves headings.
       let text = '';
-      for (const item of content.items) {
+      for (const item of content.items as TextItem[]) {
         if (typeof item.str !== 'string') continue;
         text += item.str;
         if (item.hasEOL) text += '\n';
