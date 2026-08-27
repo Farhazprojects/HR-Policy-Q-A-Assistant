@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  html { -webkit-font-smoothing: antialiased; }
+  body { @apply bg-canvas text-ink; }
+  /* Visible focus for keyboard users without a permanent outline on mouse click. */
+  :focus-visible { @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-white; }
+  .sidebar-scope :focus-visible { @apply ring-offset-sidebar; }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden bg-line/70 rounded;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full animate-shimmer;
+    background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

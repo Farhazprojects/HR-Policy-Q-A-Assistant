@@ -7,8 +7,8 @@
 - Repository scaffolding and GitHub project setup (this deliverable)
 
 ## Phase 2 — Assessment 2 (Weeks 5–7): Core Build
-- Backend API skeleton (FastAPI) with health check and auth stub
-- Frontend chat interface (React)
+- Backend API (Express + TypeScript) with health check and authentication
+- Frontend chat interface (Next.js + React)
 - Sample HR policy documents ingested
 - Basic RAG pipeline: retrieval + single LLM provider, no evaluation yet
 - Database schema for users, documents, conversation history
@@ -21,7 +21,7 @@
 
 ## Phase 4 — Beyond Semester (Research / Portfolio Extension)
 - Multiple LLM provider support via the adapter layer
-- Dedicated vector database (replacing pgvector MVP)
+- Dedicated vector database or pgvector (replacing the `float8[]` store)
 - Prompt management with versioning
 - Knowledge base versioning (policy documents change over time — answers must reflect the current version)
 - Analytics dashboard (most-asked questions, unanswered queries, policy gaps)
