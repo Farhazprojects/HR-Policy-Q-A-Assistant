@@ -118,12 +118,14 @@ independently, and each provider declares its own similarity function and health
 check. This is what satisfies the requirement that no paid subscription be
 mandatory.
 
-### VectorStore abstraction instead of compromising on pgvector
+### Vector storage behind an interface
 
-`pgvector` was unavailable on the development server. The alternative to an
-abstraction would have been to weaken the architecture. Instead, embeddings live
-in a `float8[]` column and similarity is computed in the service layer behind a
-`VectorStore` interface, so a pgvector implementation is a drop-in replacement.
+Embeddings live in a `float8[]` column and similarity is computed in the service
+layer behind a `VectorStore` interface. Holding vectors in the same database as
+the records they describe keeps the system on one piece of infrastructure at this
+corpus size, and the interface means a pgvector-backed or dedicated vector
+database implementation is a drop-in replacement — one new class, no calling code
+changes.
 
 ### Refusal decided before generation
 

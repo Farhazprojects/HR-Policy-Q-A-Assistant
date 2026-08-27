@@ -4,10 +4,10 @@
 
 ```mermaid
 flowchart LR
-    U[Employee] -->|asks question| FE[Frontend: React Chat UI]
-    FE -->|REST/HTTPS| API[Backend API: FastAPI]
+    U[Employee] -->|asks question| FE[Frontend: Next.js + React]
+    FE -->|REST/HTTPS| API[Backend API: Express + TypeScript]
     API --> ORCH[RAG Orchestrator]
-    ORCH -->|embed query| VS[(Vector Store: pgvector)]
+    ORCH -->|embed query| VS[(Vector Store: PostgreSQL float8 arrays)]
     VS -->|top-k relevant chunks| ORCH
     ORCH -->|question + context| LLM[LLM Provider Adapter]
     LLM -->|grounded answer + citation| ORCH
@@ -43,7 +43,7 @@ flowchart LR
 
 **LLM access via an adapter interface, not a direct SDK call.** `src/ai/llm-providers/` defines one interface that concrete provider implementations satisfy. Swapping or adding a provider means adding one new implementation, not touching the orchestrator, frontend, or API.
 
-**pgvector for the MVP vector store, not a dedicated vector database.** Running one database (PostgreSQL with the pgvector extension) instead of two pieces of infrastructure keeps Assessment 1–2 deployment simple. The interface in `src/ai/vector-store/` is written against an abstract "similarity search" contract so migrating to a dedicated vector database later is a swap, not a rewrite.
+**One database for the vector store, not a dedicated vector database.** Embeddings are held in PostgreSQL as `float8[]` alongside the records they describe, rather than introducing a second piece of infrastructure. The interface in `src/ai/vector-store/` is written against an abstract "similarity search" contract, so migrating to pgvector or a dedicated vector database later is a swap of one class, not a rewrite — no calling code changes.
 
 **Mandatory citation, not optional metadata.** Every answer returned by the orchestrator must include which retrieved chunk(s) it was grounded in (NFR-04). If retrieval confidence is too low, the system returns "I don't have a confident answer" rather than an ungrounded guess (FR-05) — this is treated as a core architectural constraint, not a UI nicety, because HR-context answers carry compliance risk if wrong.
 

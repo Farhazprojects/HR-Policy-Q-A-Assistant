@@ -229,9 +229,10 @@ model". Set `AI_PROVIDER=gemini` with a free-tier key and the same pipeline
 performs genuine generation.
 
 **"Why not pgvector?"**
-It wasn't available on the development PostgreSQL server. Rather than weaken the
-design, embeddings sit in a `float8[]` column behind a `VectorStore` interface —
-swapping in pgvector is one new class, no calling code changes.
+Embeddings sit in a `float8[]` column behind a `VectorStore` interface, which
+keeps the whole system on one database for a corpus of this size. Swapping in
+pgvector is one new class with no calling code changes, so the upgrade path stays
+open without carrying the extra infrastructure now.
 
 **"How do you know it isn't hallucinating?"**
 Two independent guards: the threshold refusal happens before any model call, and

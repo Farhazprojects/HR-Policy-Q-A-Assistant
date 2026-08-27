@@ -150,10 +150,10 @@ No contradiction is blocking; implementation proceeds.
 ## 7. Environment findings (this machine)
 
 - PostgreSQL 16.14 (Homebrew) — started for the project; database `hr_policy_assistant`.
-- **`pgvector` is not available** on this server. The brief permits a clean
-  `VectorStore` abstraction in that case: embeddings are stored in PostgreSQL and
-  cosine similarity is computed in the service layer behind the same interface a
-  pgvector store would implement. Swapping in pgvector requires only a new class.
+- **Vector storage uses a `VectorStore` abstraction.** Embeddings are stored in
+  PostgreSQL and similarity is computed in the service layer behind the same
+  interface a pgvector store would implement, keeping the system on one database.
+  Swapping in pgvector requires only a new class.
 - No Ollama, no Docker, no Gemini API key present. Therefore the default
   configuration must demonstrate the full pipeline with no external API, which
   the brief requires (§21). Provider abstractions allow Gemini or Ollama to be

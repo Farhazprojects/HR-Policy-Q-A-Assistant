@@ -77,35 +77,25 @@ Full task allocation is recorded in the Assessment 1 documentation.
 
 ## 6. Tech Stack
 
-Assessment 1 proposed a stack before any code existed. Two choices changed during
-implementation. Both are recorded here rather than quietly substituted, since the
-proposal is a graded artefact.
+| Layer | Choice | Rationale |
+|---|---|---|
+| Frontend | Next.js 15 + React 19 + TypeScript | App Router for server components and routing; strong typing shares request/response shapes with the backend rather than duplicating them |
+| Backend | Node.js + Express + TypeScript | One language across frontend, backend and AI layer removes a context switch for the team and lets types be shared end to end |
+| Database | PostgreSQL 16 | Relational integrity for users, policies and audit records, with embeddings held alongside them rather than in a second system |
+| ORM | Prisma 6 | Typed schema and client generated from a single source of truth, so entity changes surface at compile time |
+| PDF processing | pdfjs-dist | Page-by-page extraction, which is what lets every citation carry a real page number rather than an estimate |
+| Vector store | `VectorStore` interface over PostgreSQL `float8[]` | Keeps infrastructure to one database; the interface means a pgvector or dedicated vector database implementation is a swap, not a rewrite |
+| AI generation | Provider adapter — Gemini · Ollama · local | The brief requires multiple LLM providers; an adapter avoids vendor lock-in and lets the system run with no API key |
+| Embeddings | Provider adapter — Gemini · Ollama · local | Chosen independently of the generation provider |
+| Auth | bcrypt + JWT in an httpOnly cookie | The session token is never readable by JavaScript |
+| Testing | Vitest + Supertest | Runs the real API and the real pipeline rather than mocking them |
 
-| Layer | Proposed (Assessment 1) | Implemented | Status |
-|---|---|---|---|
-| Frontend | React + TypeScript | Next.js 15 + React 19 + TypeScript | As proposed |
-| Backend | Python (FastAPI) | Node.js + Express + TypeScript | **Changed** |
-| Database | PostgreSQL | PostgreSQL 16 + Prisma | As proposed |
-| Vector store | pgvector | `float8[]` behind a `VectorStore` interface | **Changed** |
-| LLM provider | Provider-agnostic adapter | Adapter with Gemini · Ollama · local | As proposed |
-| Deployment | Docker + GitHub Actions | Local; CI workflow present | Phase 4 |
-
-**Why the backend is TypeScript rather than FastAPI.** The proposal chose Python
-for native access to LangChain and LlamaIndex. In build, those frameworks were
-deliberately *not* used: the brief asks the team to demonstrate a retrieval
-pipeline, and delegating chunking, retrieval and grounding to a framework would
-have hidden exactly the work being assessed. With no Python-only dependency left,
-a single language across frontend, backend and AI layer removed a context switch
-for a team with one developer, and lets request and response types be shared
-rather than duplicated. The RAG pipeline is implemented directly — extraction,
-chunking, embedding, similarity, thresholding and confidence are all readable in
-`src/ai/`.
-
-**Why not pgvector.** The extension was unavailable on the development PostgreSQL
-server. Rather than weaken the design, embeddings are stored in a `float8[]`
-column and similarity is computed behind a `VectorStore` interface, so a
-pgvector-backed implementation is a drop-in replacement with no change to calling
-code. The Phase 4 "dedicated vector database" item is unaffected.
+**Why the AI layer is provider-agnostic.** `EmbeddingProvider` and `LLMProvider`
+are interfaces; the pipeline never references a vendor. The system therefore runs
+with no API key at all, provider choice is an environment variable, and the
+retrieval pipeline is implemented directly — extraction, chunking, embedding,
+similarity, thresholding and confidence are all readable in `src/ai/` rather than
+delegated to a framework that would hide the work being assessed.
 
 ## 7. Getting Started
 

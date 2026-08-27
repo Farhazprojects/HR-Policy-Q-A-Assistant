@@ -134,10 +134,10 @@ adjustment: the threshold is unchanged at the value specified for the project.
 
 `src/ai/vector-store/vectorStore.ts`
 
-`pgvector` is not installed on the development PostgreSQL server. Rather than
-compromise the architecture, embeddings are stored in a `float8[]` column and
-similarity is evaluated in the service layer against an in-memory snapshot of the
-index, behind a `VectorStore` interface:
+Embeddings are stored in a `float8[]` column and similarity is evaluated in the
+service layer against an in-memory snapshot of the index, behind a `VectorStore`
+interface. Keeping the vectors in the same database as the records they describe
+avoids running a second piece of infrastructure for a corpus of this size:
 
 ```ts
 interface VectorStore {

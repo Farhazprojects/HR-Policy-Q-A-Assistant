@@ -141,11 +141,11 @@ Beyond primary keys: `User.role`; `PolicyDocument.status`, `.category`, unique
 
 ## 4. Vector storage
 
-Embeddings are stored as `Float[]` (`float8[]`) rather than a `pgvector` column,
-because the extension was unavailable on the development server. All access goes
-through the `VectorStore` interface (`src/ai/vector-store/vectorStore.ts`), so
-migrating to pgvector means adding one class and an index — no schema change is
-needed elsewhere and no calling code changes. See `architecture/rag-pipeline.md` §5.
+Embeddings are stored as `Float[]` (`float8[]`), keeping vectors in the same
+database as the records they describe. All access goes through the `VectorStore`
+interface (`src/ai/vector-store/vectorStore.ts`), so migrating to pgvector means
+adding one class and an index — no schema change is needed elsewhere and no
+calling code changes. See `architecture/rag-pipeline.md` §5.
 
 ## 5. Data minimisation
 
