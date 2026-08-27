@@ -3,6 +3,8 @@
 
 > A capstone project for **COIT20254 – Information Systems Project**, CQUniversity Australia.
 
+[![CI](https://github.com/Farhazprojects/HR-Policy-Q-A-Assistant/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Farhazprojects/HR-Policy-Q-A-Assistant/actions/workflows/ci.yml)
+
 ---
 
 ## 1. Overview
