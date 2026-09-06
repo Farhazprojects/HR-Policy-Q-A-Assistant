@@ -156,9 +156,31 @@ for a corpus of this size and would not be for a large production corpus.
 
 ## 6. Threshold and the refusal path
 
-`TOP_K = 4`, `RETRIEVAL_THRESHOLD = 0.72` — **prototype configuration values,
-chosen for interpretability and not claimed to be empirically optimal.** Both are
-environment variables.
+`TOP_K = 4`. The relevance threshold is **a property of the embedding model, not
+of the application**, because similarity scores are not comparable across models.
+Each provider declares the value calibrated for its own scale, resolved at query
+time by `getActiveThreshold()` and overridable with `RETRIEVAL_THRESHOLD`:
+
+| Provider | Similarity function | Threshold | Basis |
+|---|---|---|---|
+| `local` | IDF-weighted query coverage | **0.72** | supported 0.918–0.976, unsupported ~0.265 |
+| `gemini` | cosine | **0.61** | supported 0.618–0.889, unsupported 0.448–0.603 |
+| `ollama` | cosine | 0.60 | not yet calibrated; conservative starting point |
+
+These are measured on the seeded corpus with `npm run calibrate`, not assumed.
+Carrying the lexical 0.72 across to Gemini rejects almost every valid question,
+because Gemini's scores occupy a lower and much narrower band.
+
+**The two models fail in opposite directions, and the numbers say so.** The
+lexical scorer separates answerable from unanswerable questions by a margin of
+roughly 0.65, but cannot connect "vacation days" to "annual leave" at any
+threshold — the vocabulary simply does not overlap. Gemini reaches the correct
+passage for every phrasing tried, but separates the two classes by only 0.015.
+Better retrieval and better separation are not the same property, and this
+system does not claim the second from evidence of the first.
+
+The narrow Gemini margin is the reason the post-generation refusal below matters
+more in that mode: the threshold alone is a weaker guard there.
 
 When no retrieved chunk reaches the threshold:
 
@@ -192,8 +214,9 @@ With the seeded corpus and the default local provider, rank-1 scores were:
 | How do I report a security incident? | 0.918 | Grounded |
 | **What is the company's policy on purchasing private aircraft?** | **0.265** | **Refused** |
 
-Reproduce with `npx tsx scripts/demo/probe-retrieval.ts`. These are retrieval
-scores on the seeded corpus, not an accuracy claim.
+Reproduce with `npm run probe`, `npm run phrasing` (wording sensitivity) and
+`npm run calibrate` (threshold separation). These are retrieval scores on the
+seeded corpus, not an accuracy claim.
 
 ## 7. Grounded generation
 

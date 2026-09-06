@@ -241,9 +241,12 @@ Every answer is citation-backed, and citations are stored so past answers stay
 auditable.
 
 **"Is 0.72 the optimal threshold?"**
-No, and we don't claim it is. It's a prototype configuration value chosen for
-interpretability, set by environment variable. Tuning it with evidence would need
-a labelled evaluation set, which is listed under future development.
+It is the value calibrated for the *lexical* model. The threshold belongs to the
+embedding model, not the application, because the scores are not comparable
+across models — Gemini uses 0.61. Both come from measured separation between
+questions the corpus supports and questions it does not (`npm run calibrate`),
+not from an accuracy study. A labelled evaluation set would be needed to call
+either optimal, and that is listed under future development.
 
 **"Is 89% confidence an accuracy figure?"**
 No. It's a measure of retrieval evidence strength — how well the best passage

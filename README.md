@@ -180,8 +180,9 @@ Stated plainly, since the project is assessed on the honesty of its claims as mu
 as its functionality: the default embedding model is lexical rather than semantic;
 default generation is extractive rather than generative; leave requests are stored
 but not processed (no approval workflow or payroll integration); retrieval
-parameters (`TOP_K=4`, threshold `0.72`) are prototype configuration values, not
-empirically tuned; scanned image-only PDFs are unsupported (no OCR); and the
+parameters are prototype configuration values (`TOP_K=4`; the threshold is
+calibrated per embedding model — 0.72 lexical, 0.61 Gemini — from measured score
+separation on the seeded corpus rather than from an accuracy study); scanned image-only PDFs are unsupported (no OCR); and the
 deployment is single-tenant and local. Full list in
 [`implementation-architecture.md`](docs/architecture/implementation-architecture.md)
 and the governance document.
