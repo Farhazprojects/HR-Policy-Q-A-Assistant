@@ -227,3 +227,35 @@ describe('Employee features, HR upload and governance', () => {
     });
   });
 });
+
+describe('HR dashboard chart data', () => {
+  it('derives every chart series from live aggregates', async () => {
+    const users = await createUsers().catch(() => null);
+    const token = users ? users.hr.token : '';
+    if (!token) return;
+
+    const res = await request(app).get('/api/hr/dashboard').set(auth(token));
+    expect(res.status).toBe(200);
+
+    const grounded = await prisma.question.count({ where: { status: 'GROUNDED' } });
+    const fallback = await prisma.question.count({ where: { status: 'FALLBACK' } });
+    expect(res.body.charts.outcomes.grounded).toBe(grounded);
+    expect(res.body.charts.outcomes.fallback).toBe(fallback);
+
+    // Confidence bands must account for every recorded question.
+    const bands = res.body.charts.confidenceBands;
+    const banded = bands.HIGH + bands.MEDIUM + bands.LOW;
+    expect(banded).toBe(await prisma.question.count());
+
+    // Category counts must sum to the indexed policy count.
+    const categorySum = res.body.charts.categories.reduce(
+      (n: number, c: { value: number }) => n + c.value,
+      0,
+    );
+    expect(categorySum).toBe(await prisma.policyDocument.count({ where: { status: 'INDEXED' } }));
+
+    // Citation counts are ordered strongest-first for the bar chart.
+    const cited = res.body.charts.mostCited.map((c: { value: number }) => c.value);
+    expect([...cited].sort((a: number, b: number) => b - a)).toEqual(cited);
+  });
+});

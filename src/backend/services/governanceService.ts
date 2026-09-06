@@ -115,24 +115,55 @@ export async function getRecentActivity(limit = 25) {
 }
 
 export async function getHrDashboard() {
-  const [policiesIndexed, questions, ackTotal, ackDone, confidenceAgg, recentUploads, recentQuestions] =
-    await Promise.all([
-      prisma.policyDocument.count({ where: { status: 'INDEXED' } }),
-      prisma.question.count(),
-      prisma.policyAcknowledgement.count(),
-      prisma.policyAcknowledgement.count({ where: { acknowledgedAt: { not: null } } }),
-      prisma.question.aggregate({ _avg: { confidence: true }, where: { status: 'GROUNDED' } }),
-      prisma.policyDocument.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-        select: { id: true, title: true, version: true, status: true, pageCount: true, chunkCount: true, createdAt: true, isDemo: true },
-      }),
-      prisma.question.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 8,
-        select: { id: true, question: true, status: true, confidence: true, createdAt: true, user: { select: { name: true } } },
-      }),
-    ]);
+  const [
+    policiesIndexed,
+    questions,
+    ackTotal,
+    ackDone,
+    confidenceAgg,
+    recentUploads,
+    recentQuestions,
+    outcomeRows,
+    bandRows,
+    categoryRows,
+    citationRows,
+  ] = await Promise.all([
+    prisma.policyDocument.count({ where: { status: 'INDEXED' } }),
+    prisma.question.count(),
+    prisma.policyAcknowledgement.count(),
+    prisma.policyAcknowledgement.count({ where: { acknowledgedAt: { not: null } } }),
+    prisma.question.aggregate({ _avg: { confidence: true }, where: { status: 'GROUNDED' } }),
+    prisma.policyDocument.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { id: true, title: true, version: true, status: true, pageCount: true, chunkCount: true, createdAt: true, isDemo: true },
+    }),
+    prisma.question.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      select: { id: true, question: true, status: true, confidence: true, createdAt: true, user: { select: { name: true } } },
+    }),
+    // Every figure below is a live aggregate. Nothing on the dashboard is a
+    // constant, which is what lets the charts be presented as measurements.
+    prisma.question.groupBy({ by: ['status'], _count: { _all: true } }),
+    prisma.question.groupBy({ by: ['confidenceBand'], _count: { _all: true } }),
+    prisma.policyDocument.groupBy({
+      by: ['category'],
+      where: { status: 'INDEXED' },
+      _count: { _all: true },
+    }),
+    // Which policies employees actually rely on, measured by how often a
+    // passage from each was cited as evidence.
+    prisma.citation.groupBy({
+      by: ['documentTitle'],
+      _count: { _all: true },
+      orderBy: { _count: { documentTitle: 'desc' } },
+      take: 6,
+    }),
+  ]);
+
+  const countOf = (rows: { _count: { _all: number } }[], match: (r: never) => boolean) =>
+    rows.filter(match as never).reduce((n, r) => n + r._count._all, 0);
 
   return {
     metrics: {
@@ -142,6 +173,22 @@ export async function getHrDashboard() {
       acknowledgementTotal: ackTotal,
       acknowledgementDone: ackDone,
       averageConfidence: confidenceAgg._avg.confidence ?? 0,
+    },
+    charts: {
+      outcomes: {
+        grounded: countOf(outcomeRows, (r: { status: string }) => r.status === 'GROUNDED'),
+        fallback: countOf(outcomeRows, (r: { status: string }) => r.status === 'FALLBACK'),
+        error: countOf(outcomeRows, (r: { status: string }) => r.status === 'ERROR'),
+      },
+      confidenceBands: {
+        HIGH: countOf(bandRows, (r: { confidenceBand: string | null }) => r.confidenceBand === 'HIGH'),
+        MEDIUM: countOf(bandRows, (r: { confidenceBand: string | null }) => r.confidenceBand === 'MEDIUM'),
+        LOW: countOf(bandRows, (r: { confidenceBand: string | null }) => r.confidenceBand === 'LOW'),
+      },
+      categories: categoryRows
+        .map((r) => ({ label: r.category, value: r._count._all }))
+        .sort((a, b) => b.value - a.value),
+      mostCited: citationRows.map((r) => ({ label: r.documentTitle, value: r._count._all })),
     },
     recentUploads,
     recentQuestions,

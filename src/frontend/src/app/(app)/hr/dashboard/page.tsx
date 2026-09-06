@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { DemoBadge, PrototypeBadge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { BarChart, CHART_COLOURS, Meter, ShareBar } from '@/components/ui/Charts';
 import { MetricCard } from '@/components/ui/MetricCard';
 import { ErrorState } from '@/components/ui/States';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -14,6 +15,12 @@ interface HrDashboard {
   metrics: {
     policiesIndexed: number; questions: number; acknowledgementRate: number;
     acknowledgementTotal: number; acknowledgementDone: number; averageConfidence: number;
+  };
+  charts: {
+    outcomes: { grounded: number; fallback: number; error: number };
+    confidenceBands: { HIGH: number; MEDIUM: number; LOW: number };
+    categories: { label: string; value: number }[];
+    mostCited: { label: string; value: number }[];
   };
   recentUploads: { id: string; title: string; version: string; status: string; pageCount: number; chunkCount: number; createdAt: string; isDemo: boolean }[];
   recentQuestions: { id: string; question: string; status: string; confidence: number; createdAt: string; user: { name: string } }[];
@@ -80,6 +87,79 @@ export default function HrDashboardPage() {
         retrieval-derived confidence of grounded answers — it is not a measured
         answer-correctness rate.
       </p>
+
+      <h2 className="mb-1 mt-9 text-xl font-bold text-ink">Knowledge base insight</h2>
+      <p className="mb-4 text-sm text-ink-muted">
+        Measured from the questions employees have actually asked and the evidence
+        retrieved to answer them.
+      </p>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card className="p-6">
+          <h3 className="text-base font-semibold text-ink">Answer outcomes</h3>
+          <p className="mb-4 mt-1 text-sm text-ink-muted">
+            How often the knowledge base could support an answer.
+          </p>
+          <ShareBar
+            segments={[
+              { label: 'Grounded', value: data?.charts.outcomes.grounded ?? 0, colour: CHART_COLOURS.grounded },
+              { label: 'Refused', value: data?.charts.outcomes.fallback ?? 0, colour: CHART_COLOURS.fallback },
+              { label: 'Error', value: data?.charts.outcomes.error ?? 0, colour: CHART_COLOURS.error },
+            ]}
+            caption="A refusal is a correct outcome when no approved policy covers the question. A rising share suggests a gap in the knowledge base rather than a fault in the assistant."
+          />
+
+          <div className="mt-6 border-t border-line pt-5">
+            <h3 className="text-base font-semibold text-ink">Retrieval confidence</h3>
+            <p className="mb-4 mt-1 text-sm text-ink-muted">
+              Strength of the evidence behind each answer, not a correctness rate.
+            </p>
+            <BarChart
+              data={[
+                { label: 'High (≥ 80%)', value: data?.charts.confidenceBands.HIGH ?? 0 },
+                { label: 'Medium (60–79%)', value: data?.charts.confidenceBands.MEDIUM ?? 0 },
+                { label: 'Low (< 60%)', value: data?.charts.confidenceBands.LOW ?? 0 },
+              ]}
+              unit=" questions"
+              unitOne=" question"
+              emptyMessage="No questions have been asked yet."
+            />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-base font-semibold text-ink">Most-relied-upon policies</h3>
+          <p className="mb-4 mt-1 text-sm text-ink-muted">
+            How often a passage from each document was cited as evidence.
+          </p>
+          <BarChart
+            data={data?.charts.mostCited ?? []}
+            unit=" citations"
+            unitOne=" citation"
+            emptyMessage="No answers have cited a policy yet."
+          />
+
+          <div className="mt-6 border-t border-line pt-5">
+            <h3 className="text-base font-semibold text-ink">Indexed policies by category</h3>
+            <p className="mb-4 mt-1 text-sm text-ink-muted">Coverage of the knowledge base.</p>
+            <BarChart
+              data={data?.charts.categories ?? []}
+              unit=" policies"
+              unitOne=" policy"
+              emptyMessage="No policies are indexed yet."
+            />
+          </div>
+
+          <div className="mt-6 border-t border-line pt-5">
+            <Meter
+              label="Policy acknowledgement completion"
+              value={data?.metrics.acknowledgementDone ?? 0}
+              total={data?.metrics.acknowledgementTotal ?? 0}
+              caption="assignments completed"
+            />
+          </div>
+        </Card>
+      </div>
 
       <h2 className="mb-4 mt-9 text-xl font-bold text-ink">HR tools</h2>
       <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
