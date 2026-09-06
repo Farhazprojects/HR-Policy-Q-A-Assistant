@@ -15,6 +15,7 @@ import { assignRequiredPolicies } from '@backend/services/acknowledgementService
 import { vectorStore } from '@ai/vector-store/vectorStore';
 import { POLICIES } from './policy-content';
 import { generateAll } from './generate-policy-pdfs';
+import { getActiveThreshold } from '@ai/llm-providers/embedding';
 
 const POLICY_DIR = path.resolve(__dirname, 'policies');
 
@@ -52,7 +53,7 @@ async function main() {
   console.log('\n  HR Policy Knowledge Assistant — seeding demonstration environment\n');
   console.log(`  Embedding provider : ${env.embeddingProvider}`);
   console.log(`  AI provider        : ${env.aiProvider}`);
-  console.log(`  Retrieval          : TOP_K=${env.rag.topK}, threshold=${env.rag.threshold}\n`);
+  console.log(`  Retrieval          : TOP_K=${env.rag.topK}, threshold=${getActiveThreshold()}\n`);
 
   // 1. Reset demonstration data (leaves schema intact).
   console.log('  Clearing existing data...');

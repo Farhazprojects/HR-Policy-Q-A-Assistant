@@ -27,3 +27,14 @@ export function setEmbeddingProvider(p: EmbeddingProvider | null): void {
 }
 
 export type { EmbeddingProvider, ScoreInput } from './types';
+
+/**
+ * The relevance threshold in force for the active embedding model.
+ *
+ * Similarity scores are not comparable across models, so the calibrated value
+ * lives on the provider. RETRIEVAL_THRESHOLD pins one value across all of them
+ * when set explicitly.
+ */
+export function getActiveThreshold(): number {
+  return env.rag.thresholdOverride ?? getEmbeddingProvider().defaultThreshold;
+}

@@ -1,6 +1,6 @@
 import { prisma } from '@db/client';
 import { env } from '@backend/config/env';
-import { getEmbeddingProvider } from '@ai/llm-providers/embedding';
+import { getActiveThreshold, getEmbeddingProvider } from '@ai/llm-providers/embedding';
 import { vectorStore } from '@ai/vector-store/vectorStore';
 import { NotFound } from '@backend/utils/errors';
 
@@ -101,4 +101,4 @@ export async function searchPolicies(query: string): Promise<PolicySearchResult[
   return results.sort((a, b) => b.score - a.score);
 }
 
-export const retrievalConfig = { topK: env.rag.topK, threshold: env.rag.threshold };
+export const retrievalConfig = { topK: env.rag.topK, threshold: getActiveThreshold() };

@@ -1,6 +1,6 @@
 import { env } from '@backend/config/env';
 import { prisma } from '@db/client';
-import { getEmbeddingProvider } from '@ai/llm-providers/embedding';
+import { getActiveThreshold, getEmbeddingProvider } from '@ai/llm-providers/embedding';
 import { getLLMProvider } from '@ai/llm-providers/llm';
 
 /**
@@ -68,7 +68,7 @@ export async function getGovernanceMetrics() {
       averageConfidence: confidenceAgg._avg.confidence ?? 0,
     },
     retrieval: {
-      threshold: env.rag.threshold,
+      threshold: getActiveThreshold(),
       topK: env.rag.topK,
       similarityFunction: embeddingProvider.similarityFunction,
       embeddingProvider: embeddingProvider.id,

@@ -9,6 +9,8 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
   readonly model = env.ollama.embeddingModel;
   readonly dimensions = 768;
   readonly isNeural = true;
+  /** Not yet calibrated against a corpus; a conservative cosine starting point. */
+  readonly defaultThreshold = 0.60;
   readonly similarityFunction = 'cosine';
 
   async embedOne(text: string): Promise<number[]> {

@@ -12,6 +12,16 @@ export interface EmbeddingProvider {
   readonly isNeural: boolean;
   /** Name of the similarity function this provider declares, shown in the UI and docs. */
   readonly similarityFunction: string;
+  /**
+   * Relevance threshold calibrated for THIS model's similarity scale.
+   *
+   * Scores are not comparable across models: the lexical scorer separates
+   * supported from unsupported questions by roughly 0.65, while Gemini cosine
+   * separates them by roughly 0.015 on the same corpus. Carrying one number
+   * across providers silently breaks either recall or refusal, so each provider
+   * owns its own. RETRIEVAL_THRESHOLD overrides it when set.
+   */
+  readonly defaultThreshold: number;
 
   embed(texts: string[]): Promise<number[][]>;
   embedOne(text: string): Promise<number[]>;

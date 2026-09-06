@@ -73,7 +73,10 @@ export async function ask(params: {
 
   const embeddingProvider = getEmbeddingProvider();
   const llmProvider = getLLMProvider();
-  const { topK, threshold } = env.rag;
+  const { topK } = env.rag;
+  // The threshold belongs to the embedding model, not the application: see
+  // EmbeddingProvider.defaultThreshold. An explicit env var still wins.
+  const threshold = env.rag.thresholdOverride ?? getEmbeddingProvider().defaultThreshold;
 
   await recordAudit({
     userId: params.userId,
@@ -193,7 +196,10 @@ async function finalise(p: {
   ipAddress?: string;
 }): Promise<AskResult> {
   const embeddingProvider = getEmbeddingProvider();
-  const { topK, threshold } = env.rag;
+  const { topK } = env.rag;
+  // The threshold belongs to the embedding model, not the application: see
+  // EmbeddingProvider.defaultThreshold. An explicit env var still wins.
+  const threshold = env.rag.thresholdOverride ?? getEmbeddingProvider().defaultThreshold;
   const conf = calculateConfidence(p.accepted, threshold, topK);
   const latencyMs = Date.now() - p.started;
 

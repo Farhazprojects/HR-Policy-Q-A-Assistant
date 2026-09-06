@@ -1,14 +1,21 @@
 import { env } from '@backend/config/env';
 import { ServiceUnavailable } from '@backend/utils/errors';
-import { cosine } from '@ai/rag/tokenizer';
+import { cosine, l2normalise } from '@ai/rag/tokenizer';
 import type { EmbeddingProvider, ScoreInput } from './types';
 
 /** Google Gemini embeddings. Free tier eligible; model id is configurable. */
 export class GeminiEmbeddingProvider implements EmbeddingProvider {
   readonly id = 'gemini' as const;
   readonly model = env.gemini.embeddingModel;
-  readonly dimensions = 768;
+  /**
+   * gemini-embedding-001 returns 3072 dimensions by default. A smaller width is
+   * requested explicitly so the declared size matches what is actually stored —
+   * a mismatch would silently corrupt similarity once vectors are persisted.
+   */
+  readonly dimensions = Number(process.env.GEMINI_EMBEDDING_DIMENSIONS ?? 768);
   readonly isNeural = true;
+  /** Measured on the seeded corpus: supported 0.618-0.889, unsupported 0.448-0.603. */
+  readonly defaultThreshold = 0.61;
   readonly similarityFunction = 'cosine';
 
   private assertKey(): void {
@@ -37,6 +44,7 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
           body: JSON.stringify({
             model: `models/${this.model}`,
             content: { parts: [{ text }] },
+            outputDimensionality: this.dimensions,
           }),
         },
       );
@@ -52,7 +60,15 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
       const json = (await res.json()) as { embedding?: { values?: number[] } };
       const values = json.embedding?.values;
       if (!values?.length) throw ServiceUnavailable('Gemini returned an empty embedding.');
-      out.push(values);
+      if (values.length !== this.dimensions) {
+        throw ServiceUnavailable(
+          `Gemini returned a ${values.length}-dimension embedding but this provider is ` +
+            `configured for ${this.dimensions}. Set GEMINI_EMBEDDING_DIMENSIONS to match.`,
+        );
+      }
+      // Truncated output dimensions are not unit-length, so normalise before
+      // storing: cosine similarity assumes normalised vectors here.
+      out.push(l2normalise(values));
     }
     return out;
   }

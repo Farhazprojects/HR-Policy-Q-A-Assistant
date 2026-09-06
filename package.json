@@ -2,13 +2,13 @@
   "name": "hr-policy-qa-assistant",
   "version": "1.0.0",
   "private": true,
-  "description": "AI-powered HR Policy Q&A Assistant — retrieval-augmented, explainable, policy-grounded. COIT20254 Capstone, CQUniversity Australia.",
+  "description": "AI-powered HR Policy Q&A Assistant \u2014 retrieval-augmented, explainable, policy-grounded. COIT20254 Capstone, CQUniversity Australia.",
   "workspaces": [
     "src/frontend"
   ],
   "scripts": {
     "dev": "concurrently -n api,web -c magenta,cyan \"npm run dev:api\" \"npm run dev:web\"",
-    "dev:api": "tsx watch src/backend/index.ts",
+    "dev:api": "PORT=${API_PORT:-4000} tsx watch src/backend/index.ts",
     "dev:web": "npm run dev -w frontend",
     "build": "npm run build:api && npm run build:web",
     "build:api": "tsc -p tsconfig.json && tsc-alias -p tsconfig.json",
@@ -25,7 +25,13 @@
     "seed": "tsx src/database/seeds/seed.ts",
     "seed:pdfs": "tsx src/database/seeds/generate-policy-pdfs.ts",
     "probe": "tsx scripts/demo/probe-retrieval.ts",
-    "setup": "npm install && npm run db:generate && npm run db:push && npm run seed"
+    "setup": "npm install && npm run db:generate && npm run db:push && npm run seed",
+    "mode": "node -e \"const e=require('fs').readFileSync('.env','utf8');const g=k=>(e.match(new RegExp('^'+k+'=(.*)$','m'))||[,'(unset)'])[1];console.log('generation:',g('AI_PROVIDER'),'| embeddings:',g('EMBEDDING_PROVIDER'),'| model:',g('GEMINI_MODEL'))\"",
+    "mode:local": "node scripts/demo/set-mode.mjs local && npm run seed",
+    "mode:gemini": "node scripts/demo/set-mode.mjs gemini && npm run seed",
+    "mode:ollama": "node scripts/demo/set-mode.mjs ollama && npm run seed",
+    "calibrate": "tsx scripts/demo/calibrate-threshold.ts",
+    "phrasing": "tsx scripts/demo/phrasing-probe.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.2.0",

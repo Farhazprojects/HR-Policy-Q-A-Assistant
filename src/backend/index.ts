@@ -2,6 +2,7 @@ import { createApp } from './app';
 import { env } from '@backend/config/env';
 import { prisma } from '@db/client';
 import { logger } from '@backend/utils/logger';
+import { getActiveThreshold } from '@ai/llm-providers/embedding';
 
 async function main() {
   if (!env.databaseUrl) {
@@ -24,7 +25,7 @@ async function main() {
     logger.info(
       `AI provider: ${env.aiProvider} | Embeddings: ${env.embeddingProvider} | Demo mode: ${env.demoMode}`,
     );
-    logger.info(`Retrieval: TOP_K=${env.rag.topK}, threshold=${env.rag.threshold}`);
+    logger.info(`Retrieval: TOP_K=${env.rag.topK}, threshold=${getActiveThreshold()}`);
   });
 
   const shutdown = async (signal: string) => {

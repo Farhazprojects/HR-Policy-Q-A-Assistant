@@ -37,7 +37,7 @@ export const env = {
 
   gemini: {
     apiKey: process.env.GEMINI_API_KEY ?? '',
-    model: process.env.GEMINI_MODEL ?? 'gemini-2.5-flash',
+    model: process.env.GEMINI_MODEL ?? 'gemini-flash-latest',
     embeddingModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
     baseUrl: process.env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta',
   },
@@ -51,7 +51,11 @@ export const env = {
   rag: {
     topK: num(process.env.TOP_K, 4),
     // Prototype configuration value, not an empirically optimised constant.
-    threshold: num(process.env.RETRIEVAL_THRESHOLD, 0.72),
+    // Unset by default so each embedding model's calibrated threshold applies.
+    // Set RETRIEVAL_THRESHOLD to pin one value across providers.
+    thresholdOverride: process.env.RETRIEVAL_THRESHOLD
+      ? num(process.env.RETRIEVAL_THRESHOLD, 0.72)
+      : undefined,
     chunkTargetChars: num(process.env.CHUNK_TARGET_CHARS, 900),
     chunkOverlapChars: num(process.env.CHUNK_OVERLAP_CHARS, 150),
     maxContextChunks: num(process.env.MAX_CONTEXT_CHUNKS, 6),

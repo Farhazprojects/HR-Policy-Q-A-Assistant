@@ -1,7 +1,7 @@
 /** Diagnostic: shows retrieval scores for the demonstration questions. */
 import { env } from '@backend/config/env';
 import { prisma } from '@db/client';
-import { getEmbeddingProvider } from '@ai/llm-providers/embedding';
+import { getActiveThreshold, getEmbeddingProvider } from '@ai/llm-providers/embedding';
 import { vectorStore } from '@ai/vector-store/vectorStore';
 
 const QUESTIONS = [
@@ -15,16 +15,16 @@ const QUESTIONS = [
 
 async function main() {
   const p = getEmbeddingProvider();
-  console.log(`provider=${p.id} model=${p.model} sim=${p.similarityFunction} threshold=${env.rag.threshold}\n`);
+  console.log(`provider=${p.id} model=${p.model} sim=${p.similarityFunction} threshold=${getActiveThreshold()}\n`);
   for (const q of QUESTIONS) {
     const v = await p.embedOne(q);
     const hits = await vectorStore.search(q, v, env.rag.topK);
-    const accepted = hits.filter((h) => h.similarity >= env.rag.threshold);
+    const accepted = hits.filter((h) => h.similarity >= getActiveThreshold());
     console.log(`Q: ${q}`);
     console.log(`   accepted=${accepted.length}/${hits.length}`);
     for (const h of hits) {
       console.log(
-        `   ${h.similarity >= env.rag.threshold ? '✓' : '·'} ${h.similarity.toFixed(3)}  ${h.documentTitle} p${h.page} — ${h.section}`,
+        `   ${h.similarity >= getActiveThreshold() ? '✓' : '·'} ${h.similarity.toFixed(3)}  ${h.documentTitle} p${h.page} — ${h.section}`,
       );
     }
     console.log('');

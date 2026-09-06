@@ -38,7 +38,10 @@ export class GeminiProvider implements LLMProvider {
               ],
             },
           ],
-          generationConfig: { temperature: 0.2, maxOutputTokens: 800, topP: 0.9 },
+          // Current Gemini flash models reason before answering, and that reasoning is
+          // charged against maxOutputTokens. An 800-token cap can be consumed entirely
+          // by thinking, returning an empty answer with finishReason MAX_TOKENS.
+          generationConfig: { temperature: 0.2, maxOutputTokens: 2048, topP: 0.9 },
         }),
       },
     );

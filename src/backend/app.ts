@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import { env } from '@backend/config/env';
 import { errorHandler, notFoundHandler, asyncHandler } from '@backend/middleware/error';
 import { generalLimiter } from '@backend/middleware/rateLimit';
-import { getEmbeddingProvider } from '@ai/llm-providers/embedding';
+import { getActiveThreshold, getEmbeddingProvider } from '@ai/llm-providers/embedding';
 import { getLLMProvider } from '@ai/llm-providers/llm';
 import { vectorStore } from '@ai/vector-store/vectorStore';
 import acknowledgementRoutes from '@backend/api/acknowledgements';
@@ -41,7 +41,7 @@ export function createApp() {
         status: 'ok',
         demoMode: env.demoMode,
         indexedChunks: await vectorStore.size(),
-        retrieval: { topK: env.rag.topK, threshold: env.rag.threshold },
+        retrieval: { topK: env.rag.topK, threshold: getActiveThreshold() },
         embedding: {
           provider: embedding.id,
           model: embedding.model,
