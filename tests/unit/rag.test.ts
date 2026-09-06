@@ -129,3 +129,58 @@ describe('Confidence calculation', () => {
     expect(r.percentage).toBe(Math.round(r.confidence * 100));
   });
 });
+
+describe('Per-question provider mode', () => {
+  let users: TestUsers;
+
+  beforeAll(async () => {
+    await resetDatabase();
+    users = await createUsers();
+    await ingestLeavePolicy();
+  });
+
+  it('answers using the mode requested for that question', async () => {
+    const res = await request(app)
+      .post('/api/chat')
+      .set(auth(users.employee.token))
+      .send({ question: 'How many days of annual leave are employees entitled to?', mode: 'local' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.provider.embedding).toBe('local');
+    expect(res.body.provider.generationMode).toBe('extractive');
+  });
+
+  it('applies the threshold calibrated for the mode that answered', async () => {
+    const res = await request(app)
+      .post('/api/chat')
+      .set(auth(users.employee.token))
+      .send({ question: 'How many days of annual leave are employees entitled to?', mode: 'local' });
+
+    // The lexical scale, not whatever the configured default happens to be.
+    expect(res.body.explainability.threshold).toBe(0.72);
+  });
+
+  it('rejects a mode that is not a known provider', async () => {
+    const res = await request(app)
+      .post('/api/chat')
+      .set(auth(users.employee.token))
+      .send({ question: 'How much annual leave do I get?', mode: 'not-a-provider' });
+    expect(res.status).toBe(400);
+  });
+
+  it('reports the best retrieved score on a refusal, not zero', async () => {
+    const res = await request(app)
+      .post('/api/chat')
+      .set(auth(users.employee.token))
+      .send({ question: 'what is the recipe for sourdough bread', mode: 'local' });
+
+    expect(res.body.status).toBe('FALLBACK');
+    expect(res.body.explainability.confidence).toBe(0);
+    // Retrieval still found a nearest passage; reporting 0 would contradict the
+    // fallback reason, which quotes that score.
+    expect(res.body.explainability.topSimilarity).toBeGreaterThan(0);
+    expect(res.body.fallbackReason).toContain(
+      res.body.explainability.topSimilarity.toFixed(2),
+    );
+  });
+});

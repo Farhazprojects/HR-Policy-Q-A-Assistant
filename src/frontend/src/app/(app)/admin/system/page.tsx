@@ -67,6 +67,8 @@ export default function SystemOverviewPage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="System Overview"
         description="How the proposed system connects users, HR knowledge, RAG and governance."
       />

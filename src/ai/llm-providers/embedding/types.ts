@@ -10,6 +10,16 @@ export interface EmbeddingProvider {
   readonly dimensions: number;
   /** True for learned semantic embeddings, false for the deterministic lexical model. */
   readonly isNeural: boolean;
+  /**
+   * Whether this scorer needs the stored vector to come from the same model.
+   *
+   * Neural scorers compare vectors directly, so a vector from another model is
+   * meaningless. The lexical scorer derives almost all of its score from the
+   * query and passage TEXT, so it can rank a corpus indexed by another model —
+   * which is what allows the assistant to switch retrieval mode per question
+   * without re-indexing.
+   */
+  readonly requiresVectorMatch: boolean;
   /** Name of the similarity function this provider declares, shown in the UI and docs. */
   readonly similarityFunction: string;
   /**

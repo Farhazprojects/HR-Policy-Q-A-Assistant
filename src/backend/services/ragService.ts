@@ -1,7 +1,8 @@
 import { env } from '@backend/config/env';
 import { prisma } from '@db/client';
-import { getEmbeddingProvider } from '@ai/llm-providers/embedding';
-import { getLLMProvider } from '@ai/llm-providers/llm';
+import { getActiveThreshold, resolveEmbeddingProvider } from '@ai/llm-providers/embedding';
+import type { EmbeddingProvider } from '@ai/llm-providers/embedding';
+import { resolveLLMProvider } from '@ai/llm-providers/llm';
 import type { RetrievedContext } from '@ai/llm-providers/llm';
 import { calculateConfidence } from '@ai/evaluation/confidence';
 import { FALLBACK_ANSWER, GROUNDING_SYSTEM_PROMPT } from '@ai/prompt-management/prompt';
@@ -62,6 +63,13 @@ export async function ask(params: {
   userId: string;
   question: string;
   ipAddress?: string;
+  /**
+   * Overrides the configured provider for this question only. Lets the
+   * interface answer the same question in either mode so the difference between
+   * lexical retrieval with extractive quoting and semantic retrieval with
+   * generated prose is directly observable.
+   */
+  mode?: 'local' | 'gemini' | 'ollama';
 }): Promise<AskResult> {
   const started = Date.now();
   const question = params.question.trim();
@@ -71,12 +79,12 @@ export async function ask(params: {
     throw BadRequest(`Please shorten your question to ${MAX_QUESTION_LENGTH} characters or fewer.`);
   }
 
-  const embeddingProvider = getEmbeddingProvider();
-  const llmProvider = getLLMProvider();
+  const embeddingProvider = resolveEmbeddingProvider(params.mode);
+  const llmProvider = resolveLLMProvider(params.mode);
   const { topK } = env.rag;
-  // The threshold belongs to the embedding model, not the application: see
-  // EmbeddingProvider.defaultThreshold. An explicit env var still wins.
-  const threshold = env.rag.thresholdOverride ?? getEmbeddingProvider().defaultThreshold;
+  // The threshold belongs to the embedding model, not the application, so it
+  // follows whichever provider answered this question.
+  const threshold = getActiveThreshold(embeddingProvider);
 
   await recordAudit({
     userId: params.userId,
@@ -87,7 +95,7 @@ export async function ask(params: {
 
   // 1. Embed the question, 2. retrieve, 3. threshold — all before any LLM call.
   const queryVector = await embeddingProvider.embedOne(question);
-  const hits = await vectorStore.search(question, queryVector, topK);
+  const hits = await vectorStore.search(question, queryVector, topK, embeddingProvider);
   const accepted = hits.filter((h) => h.similarity >= threshold);
 
   // COST CONTROL + RESPONSIBLE AI: with no qualifying evidence the language
@@ -99,6 +107,8 @@ export async function ask(params: {
         : `The closest policy passage scored ${hits[0].similarity.toFixed(2)}, below the ${threshold} relevance threshold.`;
 
     return finalise({
+      embeddingProvider,
+      threshold,
       userId: params.userId,
       question,
       answer: FALLBACK_ANSWER,
@@ -153,6 +163,8 @@ export async function ask(params: {
   if (modelRefused) {
     const cleaned = answer.replace(/^INSUFFICIENT_EVIDENCE:\s*/i, '').trim();
     return finalise({
+      embeddingProvider,
+      threshold,
       userId: params.userId,
       question,
       answer: cleaned || FALLBACK_ANSWER,
@@ -169,6 +181,8 @@ export async function ask(params: {
   }
 
   return finalise({
+      embeddingProvider,
+      threshold,
     userId: params.userId,
     question,
     answer,
@@ -194,12 +208,18 @@ async function finalise(p: {
   llm: { provider: string; model: string };
   started: number;
   ipAddress?: string;
+  // Passed in rather than re-resolved, so the recorded provenance is the mode
+  // that actually answered this question.
+  embeddingProvider: EmbeddingProvider;
+  threshold: number;
 }): Promise<AskResult> {
-  const embeddingProvider = getEmbeddingProvider();
+  const { embeddingProvider, threshold } = p;
   const { topK } = env.rag;
-  // The threshold belongs to the embedding model, not the application: see
-  // EmbeddingProvider.defaultThreshold. An explicit env var still wins.
-  const threshold = env.rag.thresholdOverride ?? getEmbeddingProvider().defaultThreshold;
+  // Confidence is derived from ACCEPTED evidence, so it is correctly zero on a
+  // refusal. The reported top similarity, though, describes what retrieval
+  // actually found — reporting zero there contradicts the fallback reason,
+  // which quotes the best score, and makes the panel look broken.
+  const bestSimilarity = p.hits[0]?.similarity ?? 0;
   const conf = calculateConfidence(p.accepted, threshold, topK);
   const latencyMs = Date.now() - p.started;
 
@@ -225,7 +245,7 @@ async function finalise(p: {
       question: p.question,
       answer: p.answer,
       status: p.status,
-      topSimilarity: conf.topSimilarity,
+      topSimilarity: p.accepted.length > 0 ? conf.topSimilarity : bestSimilarity,
       meanSimilarity: conf.meanSimilarity,
       confidence: conf.confidence,
       confidenceBand: conf.band,
@@ -261,7 +281,7 @@ async function finalise(p: {
     entityId: record.id,
     metadata: {
       confidence: conf.confidence,
-      topSimilarity: conf.topSimilarity,
+      topSimilarity: bestSimilarity,
       citations: p.accepted.length,
       generationMode: p.generationMode,
       ...(p.fallbackReason ? { fallbackReason: p.fallbackReason } : {}),
@@ -291,7 +311,7 @@ async function finalise(p: {
       confidence: conf.confidence,
       confidencePercentage: conf.percentage,
       confidenceBand: conf.band,
-      topSimilarity: conf.topSimilarity,
+      topSimilarity: p.accepted.length > 0 ? conf.topSimilarity : bestSimilarity,
       meanSimilarity: conf.meanSimilarity,
       retrievedCount: p.hits.length,
       acceptedCount: p.accepted.length,

@@ -15,6 +15,7 @@ export class GeminiEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions = Number(process.env.GEMINI_EMBEDDING_DIMENSIONS ?? 768);
   readonly isNeural = true;
   /** Measured on the seeded corpus: supported 0.618-0.889, unsupported 0.448-0.603. */
+  readonly requiresVectorMatch = true;
   readonly defaultThreshold = 0.61;
   readonly similarityFunction = 'cosine';
 

@@ -21,7 +21,8 @@ export class GeminiProvider implements LLMProvider {
       )
       .join('\n\n---\n\n');
 
-    const res = await fetch(
+    const attempt = (): Promise<Response> =>
+      fetch(
       `${env.gemini.baseUrl}/models/${this.model}:generateContent?key=${env.gemini.apiKey}`,
       {
         method: 'POST',
@@ -45,6 +46,15 @@ export class GeminiProvider implements LLMProvider {
         }),
       },
     );
+
+    // The free tier returns 429 (quota) and 503 (high demand) intermittently.
+    // Both are transient, so two short retries turn a visible demo failure into
+    // a slightly slower answer.
+    let res = await attempt();
+    for (let i = 0; i < 2 && (res.status === 429 || res.status === 503); i += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 700 * (i + 1)));
+      res = await attempt();
+    }
 
     if (!res.ok) {
       const body = await res.text();

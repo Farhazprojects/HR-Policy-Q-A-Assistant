@@ -51,6 +51,8 @@ export default function AcknowledgementsPage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="Policy Acknowledgements"
         description="Review and acknowledge policies assigned to you."
       />

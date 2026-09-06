@@ -78,6 +78,8 @@ export default function LeaveRequestPage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="Leave Request"
         description="Guided self-service workflow for initiating a leave request."
       />

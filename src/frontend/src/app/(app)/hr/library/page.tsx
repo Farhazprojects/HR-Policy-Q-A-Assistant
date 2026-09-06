@@ -48,6 +48,8 @@ export default function PolicyLibraryPage() {
   return (
     <>
       <PageHeader
+        backTo="/hr/dashboard"
+        backLabel="HR Dashboard"
         title="Policy Library"
         description="Review uploaded policies and versions."
       />

@@ -42,6 +42,7 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader
+        showBack={false}
         title="Employee Dashboard"
         description="Your central hub for HR self-service and policy information."
       />

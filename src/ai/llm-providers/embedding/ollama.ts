@@ -10,6 +10,7 @@ export class OllamaEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions = 768;
   readonly isNeural = true;
   /** Not yet calibrated against a corpus; a conservative cosine starting point. */
+  readonly requiresVectorMatch = true;
   readonly defaultThreshold = 0.60;
   readonly similarityFunction = 'cosine';
 

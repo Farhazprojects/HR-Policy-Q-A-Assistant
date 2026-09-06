@@ -76,6 +76,8 @@ export default function PolicySearchPage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="Policy Search"
         description="Search approved HR policy documents by keyword or natural language."
       />

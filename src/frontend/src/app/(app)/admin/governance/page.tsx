@@ -95,6 +95,8 @@ export default function GovernancePage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="AI Governance Dashboard"
         description="Monitor AI usage, policy grounding, permissions and audit activity."
         action={data?.demoDataPresent ? <DemoBadge /> : undefined}

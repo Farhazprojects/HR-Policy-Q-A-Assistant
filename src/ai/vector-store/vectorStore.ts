@@ -1,5 +1,6 @@
 import { prisma } from '@db/client';
 import { getEmbeddingProvider } from '@ai/llm-providers/embedding';
+import type { EmbeddingProvider } from '@ai/llm-providers/embedding';
 import { logger } from '@backend/utils/logger';
 
 export interface IndexedChunk {
@@ -13,6 +14,7 @@ export interface IndexedChunk {
   content: string;
   chunkIndex: number;
   vector: number[];
+  embeddingModel: string | null;
 }
 
 export interface SearchHit extends IndexedChunk {
@@ -30,7 +32,12 @@ export interface SearchHit extends IndexedChunk {
  * See docs/architecture/rag-pipeline.md.
  */
 export interface VectorStore {
-  search(query: string, queryVector: number[], topK: number): Promise<SearchHit[]>;
+  search(
+    query: string,
+    queryVector: number[],
+    topK: number,
+    provider?: EmbeddingProvider,
+  ): Promise<SearchHit[]>;
   invalidate(): void;
   size(): Promise<number>;
 }
@@ -55,8 +62,6 @@ class PostgresArrayVectorStore implements VectorStore {
     if (this.cache && Date.now() - this.loadedAt < CACHE_TTL_MS) return this.cache;
     this.cache = null;
 
-    const activeModel = getEmbeddingProvider().model;
-
     const rows = await prisma.policyChunk.findMany({
       where: { document: { status: 'INDEXED' } },
       select: {
@@ -73,27 +78,9 @@ class PostgresArrayVectorStore implements VectorStore {
       orderBy: [{ documentId: 'asc' }, { chunkIndex: 'asc' }],
     });
 
-    // A vector is only comparable with vectors produced by the same model.
-    // Mixing them would silently score 0 everywhere and look like "no evidence
-    // exists" rather than "the index needs rebuilding", so stale rows are
-    // excluded here and reported loudly below.
-    const usable = rows.filter((r) => (r.embeddingModel ?? activeModel) === activeModel);
-    const stale = rows.length - usable.length;
-
-    if (stale > 0 && usable.length === 0) {
-      logger.warn(
-        `Vector index is unusable: all ${stale} indexed passages were embedded with a ` +
-          `different model than the active one (${activeModel}). Re-index with ` +
-          `\`npm run seed\` so the corpus is embedded by the current provider.`,
-      );
-    } else if (stale > 0) {
-      logger.warn(
-        `${stale} indexed passages were embedded with a different model than ` +
-          `${activeModel} and are being ignored. Re-index with \`npm run seed\`.`,
-      );
-    }
-
-    this.cache = usable.map((r) => ({
+    // Every indexed chunk is cached. Which of them a given scorer may use is
+    // decided at search time, because the scorer can differ per request.
+    this.cache = rows.map((r) => ({
       id: r.id,
       documentId: r.documentId,
       documentTitle: r.document.title,
@@ -104,27 +91,53 @@ class PostgresArrayVectorStore implements VectorStore {
       content: r.content,
       chunkIndex: r.chunkIndex,
       vector: r.embedding,
+      embeddingModel: r.embeddingModel,
     }));
     this.loadedAt = Date.now();
 
     // The lexical provider derives IDF weights from the live corpus.
-    const provider = getEmbeddingProvider();
-    provider.updateCorpusStats?.(this.cache.map((c) => c.content));
+    getEmbeddingProvider().updateCorpusStats?.(this.cache.map((c) => c.content));
 
     logger.debug(`Vector index loaded: ${this.cache.length} chunks`);
     return this.cache;
   }
 
-  async search(query: string, queryVector: number[], topK: number): Promise<SearchHit[]> {
+  async search(
+    query: string,
+    queryVector: number[],
+    topK: number,
+    provider?: EmbeddingProvider,
+  ): Promise<SearchHit[]> {
     const chunks = await this.load();
     if (chunks.length === 0) return [];
 
-    const provider = getEmbeddingProvider();
-    const queryInput = { text: query, vector: queryVector };
+    const scorer = provider ?? getEmbeddingProvider();
 
-    const scored = chunks.map((c) => ({
+    // A neural scorer compares vectors directly, so a chunk embedded by another
+    // model is not comparable and must be excluded. The lexical scorer reads the
+    // passage text, so it can rank any chunk regardless of which model indexed
+    // it — that is what lets a question be answered in either mode without
+    // re-indexing the corpus.
+    const usable = scorer.requiresVectorMatch
+      ? chunks.filter((c) => (c.embeddingModel ?? scorer.model) === scorer.model)
+      : chunks;
+
+    if (usable.length === 0) {
+      logger.warn(
+        `No indexed passage is comparable with ${scorer.model}. The corpus was ` +
+          `embedded by a different model — re-index with \`npm run seed\`.`,
+      );
+      return [];
+    }
+
+    // The lexical scorer weights terms by corpus statistics, so it needs the
+    // corpus it is about to rank.
+    scorer.updateCorpusStats?.(usable.map((c) => c.content));
+
+    const queryInput = { text: query, vector: queryVector };
+    const scored = usable.map((c) => ({
       ...c,
-      similarity: provider.similarity(queryInput, { text: c.content, vector: c.vector }),
+      similarity: scorer.similarity(queryInput, { text: c.content, vector: c.vector }),
       rank: 0,
     }));
 

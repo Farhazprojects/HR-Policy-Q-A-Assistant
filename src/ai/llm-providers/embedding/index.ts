@@ -5,19 +5,38 @@ import { OllamaEmbeddingProvider } from './ollama';
 import type { EmbeddingProvider } from './types';
 
 let instance: EmbeddingProvider | null = null;
+const byName = new Map<string, EmbeddingProvider>();
+
+function build(name: string): EmbeddingProvider {
+  switch (name) {
+    case 'gemini':
+      return new GeminiEmbeddingProvider();
+    case 'ollama':
+      return new OllamaEmbeddingProvider();
+    default:
+      return new LocalLexicalEmbeddingProvider();
+  }
+}
+
+/**
+ * Returns the provider for an explicitly requested mode, or the configured
+ * default. Instances are cached per name because the lexical provider carries
+ * corpus statistics that are expensive to rebuild.
+ */
+export function resolveEmbeddingProvider(name?: string): EmbeddingProvider {
+  if (!name) return getEmbeddingProvider();
+  if (name === env.embeddingProvider && instance) return instance;
+  let p = byName.get(name);
+  if (!p) {
+    p = build(name);
+    byName.set(name, p);
+  }
+  return p;
+}
 
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (instance) return instance;
-  switch (env.embeddingProvider) {
-    case 'gemini':
-      instance = new GeminiEmbeddingProvider();
-      break;
-    case 'ollama':
-      instance = new OllamaEmbeddingProvider();
-      break;
-    default:
-      instance = new LocalLexicalEmbeddingProvider();
-  }
+  instance = build(env.embeddingProvider);
   return instance;
 }
 
@@ -35,6 +54,6 @@ export type { EmbeddingProvider, ScoreInput } from './types';
  * lives on the provider. RETRIEVAL_THRESHOLD pins one value across all of them
  * when set explicitly.
  */
-export function getActiveThreshold(): number {
-  return env.rag.thresholdOverride ?? getEmbeddingProvider().defaultThreshold;
+export function getActiveThreshold(provider?: EmbeddingProvider): number {
+  return env.rag.thresholdOverride ?? (provider ?? getEmbeddingProvider()).defaultThreshold;
 }

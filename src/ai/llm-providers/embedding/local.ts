@@ -26,6 +26,7 @@ export class LocalLexicalEmbeddingProvider implements EmbeddingProvider {
   readonly dimensions = LOCAL_EMBEDDING_DIMENSIONS;
   readonly isNeural = false;
   /** Measured on the seeded corpus: supported 0.918-0.976, unsupported ~0.265. */
+  readonly requiresVectorMatch = false;
   readonly defaultThreshold = 0.72;
   readonly similarityFunction = 'idf-weighted-query-coverage';
 

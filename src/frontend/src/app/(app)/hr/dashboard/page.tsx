@@ -45,6 +45,8 @@ export default function HrDashboardPage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="HR Officer Dashboard"
         description="Manage the HR knowledge base and monitor employee self-service."
       />

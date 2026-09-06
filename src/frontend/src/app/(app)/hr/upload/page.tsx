@@ -111,6 +111,8 @@ export default function UploadPolicyPage() {
   return (
     <>
       <PageHeader
+        backTo="/hr/dashboard"
+        backLabel="HR Dashboard"
         title="Upload HR Policy"
         description="Upload an approved PDF to add it to the policy knowledge base."
       />

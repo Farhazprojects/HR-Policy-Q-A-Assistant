@@ -26,8 +26,22 @@ const DEMO_QUESTIONS = [
   "What is the company's policy on purchasing private aircraft?",
 ];
 
+type Mode = 'gemini' | 'local';
+
+const MODES: Record<Mode, { label: string; hint: string }> = {
+  gemini: {
+    label: 'Gemini',
+    hint: 'Semantic retrieval and a generated answer. Understands wording the policy does not use.',
+  },
+  local: {
+    label: 'Local',
+    hint: 'Lexical retrieval and a quoted passage. No API key, no network, fully deterministic.',
+  },
+};
+
 export default function AskAIPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [mode, setMode] = useState<Mode>('gemini');
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<AskResult | null>(null);
@@ -46,7 +60,7 @@ export default function AskAIPage() {
     setTurns((t) => [...t, { id: `u-${Date.now()}`, role: 'user', text: q }]);
 
     try {
-      const result = await api.post<AskResult>('/chat', { question: q });
+      const result = await api.post<AskResult>('/chat', { question: q, mode });
       setTurns((t) => [
         ...t,
         { id: result.questionId, role: 'assistant', text: result.answer, result },
@@ -66,6 +80,8 @@ export default function AskAIPage() {
   return (
     <>
       <PageHeader
+        backTo="/dashboard"
+        backLabel="Dashboard"
         title="Ask AI"
         description="Ask a natural-language HR policy question. Answers are grounded in approved documents."
       />
@@ -170,24 +186,77 @@ export default function AskAIPage() {
             <div ref={endRef} />
           </div>
 
-          <form
-            onSubmit={(e: FormEvent) => { e.preventDefault(); void submit(input); }}
-            className="mt-5 flex gap-3 border-t border-line pt-5"
-          >
-            <label htmlFor="question" className="sr-only">Your HR question</label>
-            <input
-              id="question"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your HR question…"
-              disabled={busy}
-              maxLength={1000}
-              className="h-12 flex-1 rounded-lg border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-subtle focus:border-brand disabled:bg-canvas"
-            />
-            <Button type="submit" size="lg" loading={busy} disabled={!input.trim()}>
-              Send
-            </Button>
-          </form>
+          <div className="mt-5 border-t border-line pt-5">
+            {/* Suggestions stay reachable for the whole session, not only on an
+                empty conversation, so a demonstrator can move between scripted
+                questions without reloading. */}
+            {turns.length > 0 ? (
+              <div className="mb-3 flex flex-wrap gap-2">
+                <span className="self-center text-xs font-medium text-ink-subtle">Try:</span>
+                {DEMO_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => void submit(q)}
+                    disabled={busy}
+                    title={q}
+                    className="max-w-[220px] truncate rounded-full border border-line bg-canvas px-3 py-1 text-xs text-ink-muted transition-colors hover:border-brand-200 hover:bg-brand-wash hover:text-ink disabled:opacity-50"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <form
+              onSubmit={(e: FormEvent) => { e.preventDefault(); void submit(input); }}
+              className="flex gap-3"
+            >
+              <label htmlFor="question" className="sr-only">Your HR question</label>
+              <input
+                id="question"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Type your HR question…"
+                disabled={busy}
+                maxLength={1000}
+                className="h-12 flex-1 rounded-lg border border-line bg-white px-4 text-sm text-ink placeholder:text-ink-subtle focus:border-brand disabled:bg-canvas"
+              />
+
+              {/* Answering mode. The same question can be put to either stack,
+                  which is what makes the difference between lexical retrieval
+                  and semantic retrieval observable rather than asserted. */}
+              <div
+                role="group"
+                aria-label="Answering mode"
+                className="flex h-12 shrink-0 items-center rounded-lg border border-line bg-canvas p-1"
+              >
+                {(Object.keys(MODES) as Mode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMode(m)}
+                    disabled={busy}
+                    aria-pressed={mode === m}
+                    title={MODES[m].hint}
+                    className={`h-full rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50 ${
+                      mode === m
+                        ? 'bg-white text-ink shadow-sm ring-1 ring-line'
+                        : 'text-ink-subtle hover:text-ink'
+                    }`}
+                  >
+                    {MODES[m].label}
+                  </button>
+                ))}
+              </div>
+
+              <Button type="submit" size="lg" loading={busy} disabled={!input.trim()}>
+                Send
+              </Button>
+            </form>
+
+            <p className="mt-2 text-xs text-ink-subtle">{MODES[mode].hint}</p>
+          </div>
         </Card>
 
         {/* Explainability */}

@@ -10,6 +10,9 @@ router.use(requireAuth);
 
 const askSchema = z.object({
   question: z.string().trim().min(3, 'Please enter a question of at least 3 characters.').max(1000),
+  // Optional per-question provider override, so the interface can answer the
+  // same question in either mode. Omitted means the configured default.
+  mode: z.enum(['local', 'gemini', 'ollama']).optional(),
 });
 
 router.post(
@@ -25,6 +28,7 @@ router.post(
     const result = await ask({
       userId: req.user!.id,
       question: parsed.data.question,
+      mode: parsed.data.mode,
       ipAddress: req.ip,
     });
     return res.json(result);
