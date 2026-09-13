@@ -131,6 +131,11 @@ npm run dev
 
 Frontend on <http://localhost:3000>, API on <http://localhost:4000>.
 
+### Live deployment
+
+The app deploys to Render + Neon for free as a single service, redeploying on
+every push to `main`. Step-by-step: [`deployment/render/README.md`](deployment/render/README.md).
+
 ### No API key required
 
 The system runs offline with **no paid subscription and no API key**. Retrieval

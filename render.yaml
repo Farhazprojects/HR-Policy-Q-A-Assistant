@@ -1,0 +1,49 @@
+# Render Blueprint — deploys the whole application as ONE free web service.
+#
+# One process serves the API under /api and the Next.js interface for every
+# other path. That gives a single URL and a same-origin session cookie, needs no
+# service-to-service networking (which free services cannot use), and keeps to a
+# single free instance.
+#
+# Setup guide: deployment/render/README.md
+services:
+  - type: web
+    name: hr-policy-qa-assistant
+    runtime: node
+    plan: free
+    region: singapore          # nearest Render region to Australia
+    buildCommand: npm ci --include=dev && npm run db:generate && npm run build && npm run db:deploy
+    startCommand: npm run start:prod
+    healthCheckPath: /api/healthz   # liveness only — /api/health spends a real embedding call
+    autoDeployTrigger: commit       # every push to main redeploys
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: SERVE_FRONTEND
+        value: "true"
+
+      # Secrets — Render asks for these when the Blueprint is created.
+      # They live only in the Render dashboard, never in the repository.
+      - key: DATABASE_URL          # Neon connection string (pooling OFF)
+        sync: false
+      - key: SEED_PASSWORD         # private password for the three demo accounts
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OLLAMA_API_KEY
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+      - key: AI_PROVIDER
+        value: gemini
+      - key: EMBEDDING_PROVIDER
+        value: gemini
+      - key: GEMINI_MODEL
+        value: gemini-flash-latest
+      - key: OLLAMA_MODEL
+        value: gpt-oss:20b
+      - key: DEMO_MODE
+        value: "true"

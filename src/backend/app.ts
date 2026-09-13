@@ -1,6 +1,6 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import helmet from 'helmet';
 import { env } from '@backend/config/env';
 import { errorHandler, notFoundHandler, asyncHandler } from '@backend/middleware/error';
@@ -17,19 +17,40 @@ import hrRoutes from '@backend/api/hr';
 import leaveRoutes from '@backend/api/leave';
 import policyRoutes from '@backend/api/policies';
 
-export function createApp() {
+/**
+ * Builds the HTTP application.
+ *
+ * In development the API runs alone and Next.js serves the interface on its own
+ * port, proxying /api here. In a hosted deployment one process serves both: the
+ * API under /api and the Next.js request handler for everything else, so there
+ * is a single URL, a same-origin session cookie, and one service to wake.
+ *
+ * API-specific middleware is scoped to /api. Applied globally, helmet's default
+ * Content-Security-Policy blocks the inline scripts Next.js relies on, the
+ * catch-all 404 would swallow every page, and the rate limiter would count each
+ * JavaScript chunk a page loads as a request.
+ */
+export function createApp(options: { frontend?: RequestHandler } = {}) {
   const app = express();
 
   app.set('trust proxy', 1);
-  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
-  app.use(cors({ origin: env.corsOrigin, credentials: true }));
-  app.use(express.json({ limit: '1mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '1mb' }));
-  app.use(cookieParser());
-  app.use(generalLimiter);
 
-  app.get(
-    '/api/health',
+  const api = express.Router();
+  api.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+  api.use(cors({ origin: env.corsOrigin, credentials: true }));
+  api.use(express.json({ limit: '1mb' }));
+  api.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  api.use(cookieParser());
+
+  // Liveness only: no provider calls, no database round trip. A hosting
+  // platform polls this continuously, and /health spends a real embedding call
+  // per check.
+  api.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
+
+  api.use(generalLimiter);
+
+  api.get(
+    '/health',
     asyncHandler(async (_req, res) => {
       const embedding = getEmbeddingProvider();
       const llm = getLLMProvider();
@@ -59,16 +80,26 @@ export function createApp() {
     }),
   );
 
-  app.use('/api/auth', authRoutes);
-  app.use('/api/dashboard', dashboardRoutes);
-  app.use('/api/chat', chatRoutes);
-  app.use('/api/policies', policyRoutes);
-  app.use('/api/leave', leaveRoutes);
-  app.use('/api/acknowledgements', acknowledgementRoutes);
-  app.use('/api/hr', hrRoutes);
-  app.use('/api/admin', adminRoutes);
+  api.use('/auth', authRoutes);
+  api.use('/dashboard', dashboardRoutes);
+  api.use('/chat', chatRoutes);
+  api.use('/policies', policyRoutes);
+  api.use('/leave', leaveRoutes);
+  api.use('/acknowledgements', acknowledgementRoutes);
+  api.use('/hr', hrRoutes);
+  api.use('/admin', adminRoutes);
 
-  app.use(notFoundHandler);
-  app.use(errorHandler);
+  api.use(notFoundHandler);
+  api.use(errorHandler);
+  app.use('/api', api);
+
+  if (options.frontend) {
+    // Security headers for pages, without a CSP that would block Next.js.
+    app.use(helmet({ contentSecurityPolicy: false }));
+    app.all('*', options.frontend);
+  } else {
+    app.use(notFoundHandler);
+    app.use(errorHandler);
+  }
   return app;
 }

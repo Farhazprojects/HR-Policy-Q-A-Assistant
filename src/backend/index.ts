@@ -1,3 +1,5 @@
+import path from 'path';
+import type { RequestHandler } from 'express';
 import { createApp } from './app';
 import { env } from '@backend/config/env';
 import { prisma } from '@db/client';
@@ -19,9 +21,26 @@ async function main() {
     process.exit(1);
   }
 
-  const app = createApp();
+  // SERVE_FRONTEND=true runs the built Next.js interface in this same process,
+  // which is how the hosted deployment serves one URL. Development leaves it
+  // unset and runs `next dev` separately.
+  let frontend: RequestHandler | undefined;
+  if (process.env.SERVE_FRONTEND === 'true') {
+    // Loaded only when needed, so the API alone never pays Next's start-up cost.
+    const next = (await import('next')).default;
+    const dir = process.env.FRONTEND_DIR ?? path.resolve(process.cwd(), 'src/frontend');
+    const nextApp = next({ dev: false, dir });
+    await nextApp.prepare();
+    const handle = nextApp.getRequestHandler();
+    frontend = (req, res) => void handle(req, res);
+    logger.info(`Serving the web interface from ${dir}`);
+  }
+
+  const app = createApp({ frontend });
   const server = app.listen(env.port, () => {
-    logger.info(`HR Policy Knowledge Assistant API listening on http://localhost:${env.port}`);
+    logger.info(
+      `HR Policy Knowledge Assistant ${frontend ? 'app' : 'API'} listening on http://localhost:${env.port}`,
+    );
     logger.info(
       `AI provider: ${env.aiProvider} | Embeddings: ${env.embeddingProvider} | Demo mode: ${env.demoMode}`,
     );

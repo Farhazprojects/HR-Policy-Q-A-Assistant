@@ -32,7 +32,9 @@
     "mode:ollama": "node scripts/demo/set-mode.mjs ollama",
     "calibrate": "tsx scripts/demo/calibrate-threshold.ts",
     "phrasing": "tsx scripts/demo/phrasing-probe.ts",
-    "refusal-probe": "tsx scripts/demo/refusal-probe.ts"
+    "refusal-probe": "tsx scripts/demo/refusal-probe.ts",
+    "start:prod": "SERVE_FRONTEND=true node dist/backend/index.js",
+    "db:deploy": "prisma db push --skip-generate --schema src/database/schema.prisma && SEED_ONLY_IF_EMPTY=true tsx src/database/seeds/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.2.0",
@@ -66,5 +68,8 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

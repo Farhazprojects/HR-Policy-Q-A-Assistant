@@ -55,6 +55,17 @@ async function main() {
   console.log(`  AI provider        : ${env.aiProvider}`);
   console.log(`  Retrieval          : TOP_K=${env.rag.topK}, threshold=${getActiveThreshold()}\n`);
 
+  // Deployments run this on every build. Re-seeding would wipe whatever
+  // teammates have tested since — questions asked, policies uploaded, leave
+  // requests — so a hosted build seeds only an empty database.
+  if (process.env.SEED_ONLY_IF_EMPTY === 'true') {
+    const existing = await prisma.user.count();
+    if (existing > 0) {
+      console.log(`  Database already contains ${existing} accounts — leaving existing data untouched.\n`);
+      return;
+    }
+  }
+
   // 1. Reset demonstration data (leaves schema intact).
   console.log('  Clearing existing data...');
   await prisma.citation.deleteMany();
@@ -144,7 +155,13 @@ async function main() {
   console.log(`\n  Seed complete: ${summary} policies indexed, ${totalChunks} chunks embedded.\n`);
   console.log('  Demonstration sign-in:');
   for (const u of DEMO_USERS) console.log(`    ${u.role.padEnd(11)} ${u.email}`);
-  console.log(`    Password    ${DEMO_PASSWORD}  (override with SEED_PASSWORD)\n`);
+  // Build logs on a hosting platform are retained; never print a password set
+  // specifically for a shared deployment.
+  console.log(
+    process.env.SEED_PASSWORD
+      ? '    Password    (the SEED_PASSWORD you configured)\n'
+      : `    Password    ${DEMO_PASSWORD}  (override with SEED_PASSWORD)\n`,
+  );
 }
 
 main()
