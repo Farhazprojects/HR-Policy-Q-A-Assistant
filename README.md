@@ -163,6 +163,12 @@ gives a second, independently metered source of generated answers when the
 Gemini free tier is throttled. Its free plan is a *monthly* starter allowance
 with unpublished limits, so it complements Gemini rather than replacing it.
 
+If the chosen provider is throttled or stalls while writing an answer, the same
+retrieved evidence is handed to the next provider — Gemini, then Ollama, then the
+local composer — and the answer says so. Gemini has a 15-second deadline per
+attempt, and a quota error is not retried, because it will not clear within
+seconds.
+
 A mode that cannot run is disabled in the interface with the reason — a missing
 key, or an index built for a different model.
 

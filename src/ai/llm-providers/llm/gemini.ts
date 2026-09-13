@@ -21,46 +21,69 @@ export class GeminiProvider implements LLMProvider {
       )
       .join('\n\n---\n\n');
 
-    const attempt = (): Promise<Response> =>
-      fetch(
-      `${env.gemini.baseUrl}/models/${this.model}:generateContent?key=${env.gemini.apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: req.systemPrompt }] },
-          contents: [
-            {
-              role: 'user',
-              parts: [
+    const attempt = async (): Promise<Response> => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), env.gemini.timeoutMs);
+      try {
+        return await fetch(
+          `${env.gemini.baseUrl}/models/${this.model}:generateContent?key=${env.gemini.apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              systemInstruction: { parts: [{ text: req.systemPrompt }] },
+              contents: [
                 {
-                  text: `RETRIEVED HR POLICY CONTEXT:\n\n${contextBlock}\n\nEMPLOYEE QUESTION: ${req.question}`,
+                  role: 'user',
+                  parts: [
+                    {
+                      text: `RETRIEVED HR POLICY CONTEXT:\n\n${contextBlock}\n\nEMPLOYEE QUESTION: ${req.question}`,
+                    },
+                  ],
                 },
               ],
-            },
-          ],
-          // Current Gemini flash models reason before answering, and that reasoning is
-          // charged against maxOutputTokens. An 800-token cap can be consumed entirely
-          // by thinking, returning an empty answer with finishReason MAX_TOKENS.
-          generationConfig: { temperature: 0.2, maxOutputTokens: 2048, topP: 0.9 },
-        }),
-      },
-    );
+              // Current Gemini flash models reason before answering, and that reasoning is
+              // charged against maxOutputTokens. An 800-token cap can be consumed entirely
+              // by thinking, returning an empty answer with finishReason MAX_TOKENS.
+              generationConfig: { temperature: 0.2, maxOutputTokens: 2048, topP: 0.9 },
+            }),
+            signal: controller.signal,
+          },
+        );
+      } finally {
+        clearTimeout(timer);
+      }
+    };
 
-    // The free tier returns 429 (quota) and 503 (high demand) intermittently.
-    // Both are transient, so two short retries turn a visible demo failure into
-    // a slightly slower answer.
-    let res = await attempt();
-    for (let i = 0; i < 2 && (res.status === 429 || res.status === 503); i += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 700 * (i + 1)));
+    // Measured on the free tier: a healthy answer takes 2-5 s, but single calls
+    // occasionally stall past 15 s, and bursts of requests hit a per-minute quota
+    // (HTTP 429). Without a deadline, a stalled call plus retries reached about a
+    // minute on the live deployment.
+    //
+    // So each attempt has a deadline, and only 503 ("high demand") is retried,
+    // once. A 429 quota error does not clear within seconds, so retrying it only
+    // delays the failure; the pipeline falls back to another provider instead.
+    let res: Response;
+    try {
       res = await attempt();
+      if (res.status === 503) {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        res = await attempt();
+      }
+    } catch (e) {
+      const timedOut = e instanceof Error && e.name === 'AbortError';
+      throw ServiceUnavailable(
+        timedOut
+          ? `Gemini did not answer within ${Math.round(env.gemini.timeoutMs / 1000)} seconds.`
+          : 'Gemini could not be reached.',
+      );
     }
 
     if (!res.ok) {
       const body = await res.text();
       if (res.status === 429) {
         throw ServiceUnavailable(
-          'The Gemini free-tier quota has been reached. Please try again shortly, or switch AI_PROVIDER to "local" for an offline demonstration.',
+          'The Gemini free-tier quota has been reached. Please try again shortly, or choose Ollama or Local.',
         );
       }
       throw ServiceUnavailable('The AI service could not be reached. Please try again.', {

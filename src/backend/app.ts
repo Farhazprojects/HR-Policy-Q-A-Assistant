@@ -45,7 +45,11 @@ export function createApp(options: { frontend?: RequestHandler } = {}) {
   // Liveness only: no provider calls, no database round trip. A hosting
   // platform polls this continuously, and /health spends a real embedding call
   // per check.
-  api.get('/healthz', (_req, res) => res.json({ status: 'ok' }));
+  api.get('/healthz', (_req, res) =>
+    // Render sets RENDER_GIT_COMMIT, which makes it possible to confirm which
+    // commit a deployment is actually serving.
+    res.json({ status: 'ok', version: process.env.RENDER_GIT_COMMIT?.slice(0, 7) ?? 'local' }),
+  );
 
   api.use(generalLimiter);
 

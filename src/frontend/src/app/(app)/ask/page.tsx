@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { CitationCard } from '@/components/ui/CitationCard';
 import { ConfidenceIndicator } from '@/components/ui/ConfidenceIndicator';
+import { Markdown } from '@/components/ui/Markdown';
 import { TypingIndicator } from '@/components/ui/States';
 import { api, ApiRequestError } from '@/lib/api';
 import type { AskResult } from '@/types';
@@ -48,6 +49,20 @@ function describe(m: ModeInfo | undefined): string {
     ? `answer written by ${m.generation.model}${m.generation.hosted ? ', hosted' : ''}`
     : 'answer quoted from the policy, no language model';
   return `${retrieval[0].toUpperCase()}${retrieval.slice(1)}; ${answer}.`;
+}
+
+const NAMES: Record<string, string> = { gemini: 'Gemini', ollama: 'Ollama', local: 'the local composer' };
+
+function formatMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`;
+}
+
+/** Plain statement of a provider hand-off, so a fallback answer is never misattributed. */
+function handoffNote(r: AskResult): string {
+  const skipped = (r.provider.handoffs ?? []).map((h) => NAMES[h.provider] ?? h.provider);
+  const writer =
+    r.provider.llm === 'local' ? 'quoted by the local composer' : `written by ${NAMES[r.provider.llm] ?? r.provider.llm} (${r.provider.llmModel})`;
+  return `${skipped.join(' and ')} ${skipped.length > 1 ? 'were' : 'was'} unavailable, so this answer was ${writer} from the same policy evidence.`;
 }
 
 export default function AskAIPage() {
@@ -173,7 +188,17 @@ export default function AskAIPage() {
                           : 'rounded-xl border border-line bg-canvas px-5 py-4'
                     }
                   >
-                    <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{turn.text}</p>
+                    {turn.error ? (
+                      <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-ink">{turn.text}</p>
+                    ) : (
+                      <Markdown>{turn.text}</Markdown>
+                    )}
+
+                    {turn.result?.provider.handoffs?.length ? (
+                      <p className="mt-3 rounded-lg bg-white px-3 py-2 text-xs text-ink-muted ring-1 ring-line">
+                        {handoffNote(turn.result)}
+                      </p>
+                    ) : null}
 
                     {turn.result?.status === 'GROUNDED' ? (
                       <p className="mt-4 border-t border-line pt-3 text-xs text-ink-subtle">
@@ -354,7 +379,13 @@ export default function AskAIPage() {
                   ['Retrieval threshold', `${active.explainability.threshold}`],
                   ['Top-K', `${active.explainability.topK}`],
                   ['Similarity function', active.explainability.similarityFunction],
-                  ['Response time', `${active.latencyMs} ms`],
+                  ...(active.timings
+                    ? [
+                        ['Finding evidence', formatMs(active.timings.retrievalMs)],
+                        ['Writing the answer', formatMs(active.timings.generationMs)],
+                      ]
+                    : []),
+                  ['Total response time', formatMs(active.latencyMs)],
                 ].map(([k, v]) => (
                   <div key={k} className="flex items-center justify-between gap-3">
                     <dt className="text-ink-subtle">{k}</dt>
@@ -383,6 +414,9 @@ export default function AskAIPage() {
                     ? 'not invoked — refusal produced by the application'
                     : `${active.provider.llm} (${active.provider.llmModel})`}
                 </p>
+                {active.provider.handoffs?.length ? (
+                  <p className="mt-1 text-xs text-caution">{handoffNote(active)}</p>
+                ) : null}
                 {active.provider.generationMode === 'extractive' &&
                  active.provider.llmModel !== 'not-invoked' ? (
                   <Badge tone="caution" className="mt-2">

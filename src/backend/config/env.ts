@@ -39,6 +39,8 @@ export const env = {
     apiKey: process.env.GEMINI_API_KEY ?? '',
     model: process.env.GEMINI_MODEL ?? 'gemini-flash-latest',
     embeddingModel: process.env.GEMINI_EMBEDDING_MODEL ?? 'gemini-embedding-001',
+    // A healthy answer takes 2-5 s; the free tier occasionally stalls far longer.
+    timeoutMs: num(process.env.GEMINI_TIMEOUT_MS, 15_000),
     baseUrl: process.env.GEMINI_BASE_URL ?? 'https://generativelanguage.googleapis.com/v1beta',
   },
 

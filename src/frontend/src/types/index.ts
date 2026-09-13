@@ -45,6 +45,8 @@ export interface ProviderInfo {
   generationMode: 'generative' | 'extractive';
   isNeuralEmbedding: boolean;
   demoMode: boolean;
+  /** Providers that could not answer before the one that did. */
+  handoffs?: { provider: string; model: string; reason: string }[];
 }
 
 export interface AskResult {
@@ -57,6 +59,7 @@ export interface AskResult {
   explainability: Explainability;
   provider: ProviderInfo;
   latencyMs: number;
+  timings?: { retrievalMs: number; generationMs: number };
 }
 
 export interface Policy {

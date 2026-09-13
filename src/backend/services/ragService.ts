@@ -3,7 +3,7 @@ import { prisma } from '@db/client';
 import { getActiveThreshold, retrievalProviderForMode } from '@ai/llm-providers/embedding';
 import type { EmbeddingProvider } from '@ai/llm-providers/embedding';
 import { resolveLLMProvider } from '@ai/llm-providers/llm';
-import type { RetrievedContext } from '@ai/llm-providers/llm';
+import type { GenerationResult, LLMProvider, RetrievedContext } from '@ai/llm-providers/llm';
 import { calculateConfidence } from '@ai/evaluation/confidence';
 import { FALLBACK_ANSWER, GROUNDING_SYSTEM_PROMPT } from '@ai/prompt-management/prompt';
 import { vectorStore, type SearchHit } from '@ai/vector-store/vectorStore';
@@ -53,8 +53,30 @@ export interface AskResult {
     generationMode: 'generative' | 'extractive';
     isNeuralEmbedding: boolean;
     demoMode: boolean;
+    /**
+     * Present when the requested provider could not answer and the same
+     * evidence was handed to another. A hand-off is always disclosed, so an
+     * answer is never presented as coming from a provider that did not write it.
+     */
+    handoffs?: { provider: string; model: string; reason: string }[];
   };
   latencyMs: number;
+  /** Where the time went: finding evidence versus writing the answer. */
+  timings: { retrievalMs: number; generationMs: number };
+}
+
+/**
+ * Providers to try, in order, for a requested answering mode.
+ *
+ * Retrieval has already produced qualifying evidence by the time this matters,
+ * so a throttled or stalled provider should not cost the employee their answer.
+ * The chain ends in the local extractive composer, which quotes the retrieved
+ * passages and needs no network, so a grounded answer is always available.
+ */
+export function generationChain(mode: string): LLMProvider[] {
+  const order =
+    mode === 'gemini' ? ['gemini', 'ollama', 'local'] : mode === 'ollama' ? ['ollama', 'local'] : ['local'];
+  return order.map((name) => resolveLLMProvider(name));
 }
 
 const MAX_QUESTION_LENGTH = 1000;
@@ -94,9 +116,11 @@ export async function ask(params: {
   });
 
   // 1. Embed the question, 2. retrieve, 3. threshold — all before any LLM call.
+  const retrievalStarted = Date.now();
   const queryVector = await embeddingProvider.embedOne(question);
   const hits = await vectorStore.search(question, queryVector, topK, embeddingProvider);
   const accepted = hits.filter((h) => h.similarity >= threshold);
+  const retrievalMs = Date.now() - retrievalStarted;
 
   // COST CONTROL + RESPONSIBLE AI: with no qualifying evidence the language
   // model is never invoked. The refusal is produced by the application.
@@ -118,6 +142,7 @@ export async function ask(params: {
       accepted: [],
       generationMode: 'extractive',
       llm: { provider: llmProvider.id, model: 'not-invoked' },
+      timings: { retrievalMs, generationMs: 0 },
       started,
       ipAddress: params.ipAddress,
     });
@@ -134,31 +159,42 @@ export async function ask(params: {
       similarity: h.similarity,
     }));
 
-  let answer: string;
-  let generationMode: 'generative' | 'extractive';
-  let modelRefused = false;
-  let llmModel = llmProvider.model;
+  const generationStarted = Date.now();
+  const handoffs: { provider: string; model: string; reason: string }[] = [];
+  let generated: GenerationResult | undefined;
 
-  try {
-    const generated = await llmProvider.generate({
-      question,
-      contexts,
-      systemPrompt: GROUNDING_SYSTEM_PROMPT,
-    });
-    answer = generated.answer;
-    generationMode = generated.mode;
-    modelRefused = generated.modelRefused ?? false;
-    llmModel = generated.model;
-  } catch (e) {
-    logger.error('Generation failed', e instanceof Error ? e.message : e);
-    // A provider outage must not become a fabricated answer.
-    if (e instanceof AppError) throw e;
+  for (const provider of generationChain(params.mode ?? env.aiProvider)) {
+    try {
+      generated = await provider.generate({ question, contexts, systemPrompt: GROUNDING_SYSTEM_PROMPT });
+      break;
+    } catch (e) {
+      // Only an unavailable provider is handed on. Anything else is a defect
+      // and must surface, not be papered over by the next provider.
+      if (!(e instanceof AppError) || e.statusCode !== 503) {
+        logger.error('Generation failed', e instanceof Error ? e.message : e);
+        throw e;
+      }
+      logger.warn(`Generation via ${provider.id} (${provider.model}) unavailable: ${e.message}`);
+      handoffs.push({ provider: provider.id, model: provider.model, reason: e.message });
+    }
+  }
+  const generationMs = Date.now() - generationStarted;
+
+  // A provider outage must not become a fabricated answer. The chain ends in the
+  // local composer, so this is reached only if even that failed.
+  if (!generated) {
     throw new AppError(
       'The AI service is temporarily unavailable. Your question was not answered — please try again shortly.',
       503,
       'SERVICE_UNAVAILABLE',
     );
   }
+
+  const answer = generated.answer;
+  const generationMode = generated.mode;
+  const modelRefused = generated.modelRefused ?? false;
+  const usedLlm = { provider: generated.provider, model: generated.model };
+  const timings = { retrievalMs, generationMs };
 
   if (modelRefused) {
     const cleaned = answer.replace(/^INSUFFICIENT_EVIDENCE:\s*/i, '').trim();
@@ -174,7 +210,9 @@ export async function ask(params: {
       hits,
       accepted,
       generationMode,
-      llm: { provider: llmProvider.id, model: llmModel },
+      llm: usedLlm,
+      handoffs,
+      timings,
       started,
       ipAddress: params.ipAddress,
     });
@@ -190,7 +228,9 @@ export async function ask(params: {
     hits,
     accepted,
     generationMode,
-    llm: { provider: llmProvider.id, model: llmModel },
+    llm: usedLlm,
+    handoffs,
+    timings,
     started,
     ipAddress: params.ipAddress,
   });
@@ -212,6 +252,8 @@ async function finalise(p: {
   // that actually answered this question.
   embeddingProvider: EmbeddingProvider;
   threshold: number;
+  handoffs?: { provider: string; model: string; reason: string }[];
+  timings: { retrievalMs: number; generationMs: number };
 }): Promise<AskResult> {
   const { embeddingProvider, threshold } = p;
   const { topK } = env.rag;
@@ -284,6 +326,8 @@ async function finalise(p: {
       topSimilarity: bestSimilarity,
       citations: p.accepted.length,
       generationMode: p.generationMode,
+      llmModel: p.llm.model,
+      ...(p.handoffs?.length ? { handoffs: p.handoffs.map((h) => h.provider) } : {}),
       ...(p.fallbackReason ? { fallbackReason: p.fallbackReason } : {}),
     },
     ipAddress: p.ipAddress,
@@ -332,8 +376,10 @@ async function finalise(p: {
       generationMode: p.generationMode,
       isNeuralEmbedding: embeddingProvider.isNeural,
       demoMode: env.demoMode,
+      ...(p.handoffs?.length ? { handoffs: p.handoffs } : {}),
     },
     latencyMs,
+    timings: p.timings,
   };
 }
 
