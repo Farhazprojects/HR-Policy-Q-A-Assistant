@@ -31,7 +31,8 @@
     "mode:gemini": "node scripts/demo/set-mode.mjs gemini && npm run seed",
     "mode:ollama": "node scripts/demo/set-mode.mjs ollama",
     "calibrate": "tsx scripts/demo/calibrate-threshold.ts",
-    "phrasing": "tsx scripts/demo/phrasing-probe.ts"
+    "phrasing": "tsx scripts/demo/phrasing-probe.ts",
+    "refusal-probe": "tsx scripts/demo/refusal-probe.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.2.0",

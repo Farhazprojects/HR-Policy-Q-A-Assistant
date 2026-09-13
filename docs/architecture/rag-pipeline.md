@@ -239,6 +239,31 @@ Retrieved context is supplied as labelled blocks:
 
 Generation temperature is 0.2 to keep answers close to the source text.
 
+### Everyday wording versus inferred policy
+
+A strict "never infer policy" rule on its own made models treat an employee's
+everyday words as inference. With the relevant passage present in context every
+time, `gpt-oss:20b` refused "how much days of sick leave I will get in a year?"
+5 times out of 5 — the policy calls it *personal leave* and never says "sick" —
+and refused "vacation days" and "work from home" about one time in five.
+
+The prompt now distinguishes the two. Matching an employee's words to the
+policy's own terms is permitted **when the passage text itself shows it covers the
+subject** (personal leave "for personal illness or injury"), and the answer must
+name the policy's term. Inventing policy the context does not state is still
+forbidden.
+
+Measured with `npm run refusal-probe`, which replays the exact retrieval, context
+and prompt without writing to the database:
+
+| | Before | After |
+|---|---|---|
+| Everyday-wording questions answered (Ollama, 3 questions × 5 runs) | 9 / 15 | **15 / 15** |
+| Off-topic questions refused when forced past retrieval (Ollama) | 6 / 6 | **10 / 10** |
+| Gemini, same checks (calls that were not rate-limited) | — | 5 / 5 answered, 3 / 3 refused |
+
+The second row is the control: loosening terminology must not loosen grounding.
+
 ## 8. Citations
 
 Every accepted chunk becomes a `Citation` row:
