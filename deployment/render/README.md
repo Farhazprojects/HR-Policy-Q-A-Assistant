@@ -17,17 +17,21 @@ Browser ──HTTPS──▶ Render web service (free, Singapore)
                      └── /*       Next.js interface
                           │
                           ▼
-                   Neon PostgreSQL (free, Sydney)
+                   Neon PostgreSQL (free, Singapore)
 ```
 
 One service serves both the API and the interface, so there is one URL and the
 login cookie stays same-origin.
 
-**Why Singapore and Sydney.** Render offers no Australian region; Singapore is the
-nearest. The database is in Sydney. Each query between them adds roughly 90 ms,
-which amounts to about half a second on a question — small beside the several
-seconds a language model takes to answer. Visitors connect only to Render, so
-where the database sits does not change how quickly pages reach them. Uploaded PDFs are not needed after they are
+**Why Singapore for both.** Render offers no Australian region; Singapore is the
+nearest. Keeping the database in the same region matters more than keeping it
+near visitors: a question makes 9–11 database round trips, which cost about a
+millisecond each within Singapore but roughly 90 ms each to Sydney — about a
+second per question. Visitors connect only to Render, so the database's location
+does not change how quickly pages reach them.
+
+A Sydney database remains a reasonable choice where HR data must be stored in
+Australia; it costs that second per question. Uploaded PDFs are not needed after they are
 indexed — everything retrieval uses lives in the database — so Render's
 temporary disk is not a problem.
 
@@ -38,11 +42,11 @@ temporary disk is not a problem.
 1. Go to **https://neon.tech** and sign up. *Continue with GitHub* is quickest.
 2. **Create project**
    - Name: `hr-policy-qa`
-   - Region: **AWS Asia Pacific (Sydney)**
+   - Region: **AWS Asia Pacific (Singapore)** — the same region as the app
 3. On the project dashboard click **Connect**.
 4. **Turn "Connection pooling" OFF.** The schema step needs a direct connection.
 5. Copy the connection string. It looks like:
-   `postgresql://neondb_owner:••••••@ep-xxxx.ap-southeast-2.aws.neon.tech/neondb?sslmode=require`
+   `postgresql://neondb_owner:••••••@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
 
 Keep it somewhere private for step 2. It contains a password.
 

@@ -11,7 +11,7 @@ services:
     name: hr-policy-qa-assistant
     runtime: node
     plan: free
-    region: singapore          # Render has no Australian region; nearest to the Sydney database
+    region: singapore          # nearest Render region to Australia; keep Neon in Singapore too
     buildCommand: npm ci --include=dev && npm run db:generate && npm run build && npm run db:deploy
     startCommand: npm run start:prod
     healthCheckPath: /api/healthz   # liveness only — /api/health spends a real embedding call
