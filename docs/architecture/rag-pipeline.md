@@ -165,9 +165,14 @@ time by `getActiveThreshold()` and overridable with `RETRIEVAL_THRESHOLD`:
 |---|---|---|---|
 | `local` | IDF-weighted query coverage | **0.72** | supported 0.918–0.976, unsupported ~0.265 |
 | `gemini` | cosine | **0.61** | supported 0.618–0.889, unsupported 0.448–0.603 |
-| `ollama` | cosine | 0.60 | not yet calibrated; conservative starting point |
+| `ollama` (local install) | cosine | 0.60 | not yet calibrated; conservative starting point |
 
 These are measured on the seeded corpus with `npm run calibrate`, not assumed.
+
+The threshold follows the model that **retrieved**, not the one that wrote the
+answer. Ollama Cloud has no embeddings API, so Ollama mode retrieves from the
+corpus's existing index and is judged on that index's scale — with the default
+Gemini index, 0.61.
 Carrying the lexical 0.72 across to Gemini rejects almost every valid question,
 because Gemini's scores occupy a lower and much narrower band.
 

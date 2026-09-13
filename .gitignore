@@ -61,3 +61,6 @@ docs/_build/
 src/backend/storage/policies/*
 !src/backend/storage/policies/.gitkeep
 src/database/seeds/policies/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

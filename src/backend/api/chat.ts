@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuth } from '@backend/middleware/auth';
 import { asyncHandler } from '@backend/middleware/error';
 import { aiLimiter } from '@backend/middleware/rateLimit';
+import { getAnsweringModes } from '@backend/services/modeService';
 import { ask, getHistory } from '@backend/services/ragService';
 
 const router = Router();
@@ -33,6 +34,11 @@ router.post(
     });
     return res.json(result);
   }),
+);
+
+router.get(
+  '/modes',
+  asyncHandler(async (_req, res) => res.json(await getAnsweringModes())),
 );
 
 router.get(

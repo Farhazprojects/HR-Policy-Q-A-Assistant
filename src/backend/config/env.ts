@@ -43,9 +43,16 @@ export const env = {
   },
 
   ollama: {
-    baseUrl: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
-    model: process.env.OLLAMA_MODEL ?? 'llama3.1',
+    // With an API key the provider talks to Ollama Cloud, where models run on
+    // Ollama's servers and nothing is downloaded locally. Without one it expects
+    // a local Ollama install.
+    apiKey: process.env.OLLAMA_API_KEY?.trim() || undefined,
+    baseUrl:
+      process.env.OLLAMA_BASE_URL ??
+      (process.env.OLLAMA_API_KEY?.trim() ? 'https://ollama.com' : 'http://localhost:11434'),
+    model: process.env.OLLAMA_MODEL ?? (process.env.OLLAMA_API_KEY?.trim() ? 'gpt-oss:20b' : 'llama3.2'),
     embeddingModel: process.env.OLLAMA_EMBEDDING_MODEL ?? 'nomic-embed-text',
+    timeoutMs: num(process.env.OLLAMA_TIMEOUT_MS, 60_000),
   },
 
   rag: {

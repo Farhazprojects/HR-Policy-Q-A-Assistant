@@ -26,22 +26,54 @@ const DEMO_QUESTIONS = [
   "What is the company's policy on purchasing private aircraft?",
 ];
 
-type Mode = 'gemini' | 'local';
+type Mode = 'gemini' | 'ollama' | 'local';
 
-const MODES: Record<Mode, { label: string; hint: string }> = {
-  gemini: {
-    label: 'Gemini',
-    hint: 'Semantic retrieval and a generated answer. Understands wording the policy does not use.',
-  },
-  local: {
-    label: 'Local',
-    hint: 'Lexical retrieval and a quoted passage. No API key, no network, fully deterministic.',
-  },
-};
+interface ModeInfo {
+  id: Mode;
+  label: string;
+  available: boolean;
+  reason?: string;
+  retrieval: { provider: string; model: string; isNeural: boolean };
+  generation: { provider: string; model: string; isGenerative: boolean; hosted: boolean };
+}
+
+/** One line under the composer describing what the selected mode will do. */
+function describe(m: ModeInfo | undefined): string {
+  if (!m?.retrieval) return '';
+  if (!m.available) return m.reason ?? `${m.label} is not available.`;
+  const retrieval = m.retrieval.isNeural
+    ? `semantic retrieval (${m.retrieval.model})`
+    : 'lexical retrieval';
+  const answer = m.generation.isGenerative
+    ? `answer written by ${m.generation.model}${m.generation.hosted ? ', hosted' : ''}`
+    : 'answer quoted from the policy, no language model';
+  return `${retrieval[0].toUpperCase()}${retrieval.slice(1)}; ${answer}.`;
+}
 
 export default function AskAIPage() {
   const [turns, setTurns] = useState<Turn[]>([]);
   const [mode, setMode] = useState<Mode>('gemini');
+  const [modes, setModes] = useState<ModeInfo[]>([]);
+
+  // Which modes can answer right now. Unavailable ones are disabled with the
+  // reason, rather than failing visibly when someone clicks Send.
+  useEffect(() => {
+    api
+      .get<{ defaultMode: Mode; modes: ModeInfo[] }>('/chat/modes')
+      .then(({ defaultMode, modes: list }) => {
+        setModes(list);
+        const preferred =
+          list.find((m) => m.id === defaultMode && m.available) ??
+          list.find((m) => m.id === 'gemini' && m.available) ??
+          list.find((m) => m.available);
+        if (preferred) setMode(preferred.id);
+      })
+      .catch(() => {
+        /* The toggle stays usable; a failing mode will explain itself on send. */
+      });
+  }, []);
+
+  const selected = modes.find((m) => m.id === mode);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState<AskResult | null>(null);
@@ -231,21 +263,28 @@ export default function AskAIPage() {
                 aria-label="Answering mode"
                 className="flex h-12 shrink-0 items-center rounded-lg border border-line bg-canvas p-1"
               >
-                {(Object.keys(MODES) as Mode[]).map((m) => (
+                {(modes.length
+                  ? modes
+                  : (['gemini', 'ollama', 'local'] as Mode[]).map((id) => ({
+                      id,
+                      label: id === 'gemini' ? 'Gemini' : id === 'ollama' ? 'Ollama' : 'Local',
+                      available: true,
+                    }) as ModeInfo)
+                ).map((m) => (
                   <button
-                    key={m}
+                    key={m.id}
                     type="button"
-                    onClick={() => setMode(m)}
-                    disabled={busy}
-                    aria-pressed={mode === m}
-                    title={MODES[m].hint}
-                    className={`h-full rounded-md px-3 text-sm font-medium transition-colors disabled:opacity-50 ${
-                      mode === m
+                    onClick={() => setMode(m.id)}
+                    disabled={busy || !m.available}
+                    aria-pressed={mode === m.id}
+                    title={m.available ? describe(m) : m.reason}
+                    className={`h-full rounded-md px-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                      mode === m.id
                         ? 'bg-white text-ink shadow-sm ring-1 ring-line'
                         : 'text-ink-subtle hover:text-ink'
                     }`}
                   >
-                    {MODES[m].label}
+                    {m.label}
                   </button>
                 ))}
               </div>
@@ -255,7 +294,7 @@ export default function AskAIPage() {
               </Button>
             </form>
 
-            <p className="mt-2 text-xs text-ink-subtle">{MODES[mode].hint}</p>
+            <p className="mt-2 text-xs text-ink-subtle">{describe(selected)}</p>
           </div>
         </Card>
 

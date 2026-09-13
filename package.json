@@ -29,7 +29,7 @@
     "mode": "node -e \"const e=require('fs').readFileSync('.env','utf8');const g=k=>(e.match(new RegExp('^'+k+'=(.*)$','m'))||[,'(unset)'])[1];console.log('generation:',g('AI_PROVIDER'),'| embeddings:',g('EMBEDDING_PROVIDER'),'| model:',g('GEMINI_MODEL'))\"",
     "mode:local": "node scripts/demo/set-mode.mjs local && npm run seed",
     "mode:gemini": "node scripts/demo/set-mode.mjs gemini && npm run seed",
-    "mode:ollama": "node scripts/demo/set-mode.mjs ollama && npm run seed",
+    "mode:ollama": "node scripts/demo/set-mode.mjs ollama",
     "calibrate": "tsx scripts/demo/calibrate-threshold.ts",
     "phrasing": "tsx scripts/demo/phrasing-probe.ts"
   },

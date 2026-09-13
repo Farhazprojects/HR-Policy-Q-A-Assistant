@@ -1,6 +1,6 @@
 import { env } from '@backend/config/env';
 import { prisma } from '@db/client';
-import { getActiveThreshold, resolveEmbeddingProvider } from '@ai/llm-providers/embedding';
+import { getActiveThreshold, retrievalProviderForMode } from '@ai/llm-providers/embedding';
 import type { EmbeddingProvider } from '@ai/llm-providers/embedding';
 import { resolveLLMProvider } from '@ai/llm-providers/llm';
 import type { RetrievedContext } from '@ai/llm-providers/llm';
@@ -79,7 +79,7 @@ export async function ask(params: {
     throw BadRequest(`Please shorten your question to ${MAX_QUESTION_LENGTH} characters or fewer.`);
   }
 
-  const embeddingProvider = resolveEmbeddingProvider(params.mode);
+  const embeddingProvider = retrievalProviderForMode(params.mode);
   const llmProvider = resolveLLMProvider(params.mode);
   const { topK } = env.rag;
   // The threshold belongs to the embedding model, not the application, so it

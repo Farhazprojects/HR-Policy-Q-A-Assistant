@@ -34,6 +34,19 @@ export function resolveEmbeddingProvider(name?: string): EmbeddingProvider {
   return p;
 }
 
+/**
+ * The embedding index a given answering mode retrieves from.
+ *
+ * Retrieval and generation are separate choices. Ollama Cloud exposes no
+ * embeddings API, so Ollama mode retrieves from whatever index the corpus was
+ * built with and uses Ollama only to write the answer. That keeps a third mode
+ * available with no re-indexing and nothing stored locally.
+ */
+export function retrievalProviderForMode(mode?: string): EmbeddingProvider {
+  if (mode === 'ollama') return getEmbeddingProvider();
+  return resolveEmbeddingProvider(mode);
+}
+
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (instance) return instance;
   instance = build(env.embeddingProvider);

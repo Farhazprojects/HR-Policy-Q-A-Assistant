@@ -13,7 +13,8 @@ import path from 'node:path';
 const MODES = {
   local:  { AI_PROVIDER: 'local',  EMBEDDING_PROVIDER: 'local'  },
   gemini: { AI_PROVIDER: 'gemini', EMBEDDING_PROVIDER: 'gemini' },
-  ollama: { AI_PROVIDER: 'ollama', EMBEDDING_PROVIDER: 'ollama' },
+  // Ollama Cloud has no embeddings API: generation switches, the index stays.
+  ollama: { AI_PROVIDER: 'ollama' },
 };
 
 const mode = process.argv[2];
@@ -36,11 +37,17 @@ for (const [key, value] of Object.entries(MODES[mode])) {
 }
 fs.writeFileSync(envPath, text);
 
+if (mode === 'ollama' && !/^OLLAMA_API_KEY=\s*\S+/m.test(text)) {
+  console.error('\n  OLLAMA_API_KEY is empty in .env — Ollama Cloud calls will fail.');
+  console.error('  Create a key at https://ollama.com/settings/keys (no local install needed)\n');
+  process.exit(1);
+}
 if (mode === 'gemini' && !/^GEMINI_API_KEY=.+$/m.test(text)) {
   console.error('\n  GEMINI_API_KEY is empty in .env — Gemini calls will fail.');
   console.error('  Create a key at https://aistudio.google.com/apikey\n');
   process.exit(1);
 }
 
-console.log(`\n  Mode set to "${mode}" (${MODES[mode].AI_PROVIDER} generation, ${MODES[mode].EMBEDDING_PROVIDER} embeddings).`);
-console.log('  Re-indexing so the corpus matches the new embedding model...\n');
+const embeddings = MODES[mode].EMBEDDING_PROVIDER ?? (text.match(/^EMBEDDING_PROVIDER=(.*)$/m)?.[1] ?? 'local');
+console.log(`\n  Mode set to "${mode}" (${MODES[mode].AI_PROVIDER} generation, ${embeddings} embeddings).`);
+if (MODES[mode].EMBEDDING_PROVIDER) console.log('  Re-indexing so the corpus matches the new embedding model...\n');
