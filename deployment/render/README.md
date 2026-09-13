@@ -17,11 +17,17 @@ Browser ──HTTPS──▶ Render web service (free, Singapore)
                      └── /*       Next.js interface
                           │
                           ▼
-                   Neon PostgreSQL (free, Singapore)
+                   Neon PostgreSQL (free, Sydney)
 ```
 
 One service serves both the API and the interface, so there is one URL and the
-login cookie stays same-origin. Uploaded PDFs are not needed after they are
+login cookie stays same-origin.
+
+**Why Singapore and Sydney.** Render offers no Australian region; Singapore is the
+nearest. The database is in Sydney. Each query between them adds roughly 90 ms,
+which amounts to about half a second on a question — small beside the several
+seconds a language model takes to answer. Visitors connect only to Render, so
+where the database sits does not change how quickly pages reach them. Uploaded PDFs are not needed after they are
 indexed — everything retrieval uses lives in the database — so Render's
 temporary disk is not a problem.
 
@@ -32,11 +38,11 @@ temporary disk is not a problem.
 1. Go to **https://neon.tech** and sign up. *Continue with GitHub* is quickest.
 2. **Create project**
    - Name: `hr-policy-qa`
-   - Region: **AWS Asia Pacific (Singapore)** — same region as the app
+   - Region: **AWS Asia Pacific (Sydney)**
 3. On the project dashboard click **Connect**.
 4. **Turn "Connection pooling" OFF.** The schema step needs a direct connection.
 5. Copy the connection string. It looks like:
-   `postgresql://neondb_owner:••••••@ep-xxxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
+   `postgresql://neondb_owner:••••••@ep-xxxx.ap-southeast-2.aws.neon.tech/neondb?sslmode=require`
 
 Keep it somewhere private for step 2. It contains a password.
 
