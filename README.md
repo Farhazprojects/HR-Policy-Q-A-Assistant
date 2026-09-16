@@ -101,7 +101,9 @@ delegated to a framework that would hide the work being assessed.
 
 ## 7. Getting Started
 
-**Requirements:** Node.js 20+, PostgreSQL 16+.
+**Requirements:** Node.js 22+, PostgreSQL 16+.
+
+New to the project? The [project Wiki](https://github.com/Farhazprojects/HR-Policy-Q-A-Assistant/wiki) has a plain-language setup guide, architecture overview and user guide.
 
 ```bash
 git clone https://github.com/Farhazprojects/HR-Policy-Q-A-Assistant.git
@@ -186,7 +188,7 @@ by `npm run seed`. Local demonstration accounts only.
 ### Common commands
 
 ```bash
-npm test           # 59 automated tests
+npm test           # 72 automated tests
 npm run typecheck  # server + frontend
 npm run build      # production build
 npm run db:studio  # browse the database
